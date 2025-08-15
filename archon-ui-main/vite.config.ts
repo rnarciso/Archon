@@ -324,8 +324,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
         '**/dist/**',
         '**/cypress/**',
         '**/.{idea,git,cache,output,temp}/**',
-        '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
-        '**/*.test.{ts,tsx}',
+        '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*'
       ],
       env: {
         VITE_HOST: host,
