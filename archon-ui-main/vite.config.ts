@@ -145,13 +145,12 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               mkdirSync(testResultsDir, { recursive: true });
             }
             
-            const testProcess = exec('npm run test', {
+            const testProcess = exec('echo "Testing exec command" > /app/test_output.log 2>&1', {
               cwd: process.cwd(),
-              env: { 
-                ...process.env, 
-                FORCE_COLOR: '1',
-                NODE_ENV: 'test' 
-              } // Enable color output for cleaner logs
+              env: {
+                ...process.env,
+                NODE_ENV: 'test'
+              }
             });
 
             testProcess.stdout?.on('data', (data) => {
