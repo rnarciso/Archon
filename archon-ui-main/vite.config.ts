@@ -145,7 +145,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               mkdirSync(testResultsDir, { recursive: true });
             }
             
-            const testProcess = exec('npx vitest run --coverage --reporter=verbose --reporter=json', {
+            const testProcess = exec('npx vitest run --coverage --reporter=dot --reporter=json', {
               cwd: process.cwd(),
               env: {
                 ...process.env,
