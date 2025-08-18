@@ -260,44 +260,22 @@ class TestService {
    * Get coverage data for Test Results Modal from new API endpoints with fallback
    */
   async getCoverageData(): Promise<any> {
-    try {
-      // Try new API endpoint first
-      const response = await callAPI<any>('/api/coverage/combined-summary');
-      return response;
-    } catch (apiError) {
-      // Fallback to static files for backward compatibility
-      try {
-        const response = await fetch('/test-results/coverage/coverage-summary.json');
-        if (!response.ok) {
-          throw new Error('Coverage data not available');
-        }
-        return await response.json();
-      } catch (staticError) {
-        throw new Error(`Failed to load coverage data: ${apiError instanceof Error ? apiError.message : 'API and static files unavailable'}`);
-      }
+    const response = await fetch('/test-results/coverage/coverage-summary.json');
+    if (!response.ok) {
+      throw new Error('Coverage data not available');
     }
+    return await response.json();
   }
 
   /**
    * Get test results for Test Results Modal from new API endpoints with fallback
    */
   async getTestResults(): Promise<any> {
-    try {
-      // Try new API endpoint first
-      const response = await callAPI<any>('/api/tests/latest-results');
-      return response;
-    } catch (apiError) {
-      // Fallback to static files for backward compatibility
-      try {
-        const response = await fetch('/test-results/test-results.json');
-        if (!response.ok) {
-          throw new Error('Test results not available');
-        }
-        return await response.json();
-      } catch (staticError) {
-        throw new Error(`Failed to load test results: ${apiError instanceof Error ? apiError.message : 'API and static files unavailable'}`);
-      }
+    const response = await fetch('/test-results/test-results.json');
+    if (!response.ok) {
+      throw new Error('Test results not available');
     }
+    return await response.json();
   }
 
   /**
