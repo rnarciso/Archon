@@ -146,10 +146,11 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               mkdirSync(testResultsDir, { recursive: true });
             }
             
-            // Use spawn for better streaming of stdout/stderr
-            const testProcess = spawn('npm', ['run', 'test:coverage:stream'], {
+            // This will run the tests and redirect all output to a log file.
+            const command = 'npm run test:coverage:stream > /app/test_output.log 2>&1';
+            const testProcess = spawn(command, {
               cwd: process.cwd(),
-              shell: true, // Use shell to properly handle npm scripts
+              shell: true, // shell:true is required for redirection to work
               env: {
                 ...process.env,
                 NODE_ENV: 'test'
@@ -207,6 +208,24 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
             req.on('close', () => {
               testProcess.kill();
             });
+          });
+
+          // Endpoint to retrieve the test output file
+          server.middlewares.use('/api/get-test-output', async (req, res) => {
+            try {
+              const logPath = path.join(process.cwd(), 'test_output.log');
+              if (existsSync(logPath)) {
+                const content = await readFile(logPath, 'utf-8');
+                res.setHeader('Content-Type', 'text/plain');
+                res.end(content);
+              } else {
+                res.statusCode = 404;
+                res.end('Test output file not found.');
+              }
+            } catch (error) {
+              res.statusCode = 500;
+              res.end(`Error reading test output file: ${error.message}`);
+            }
           });
 
           // Coverage generation endpoint
