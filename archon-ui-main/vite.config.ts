@@ -145,59 +145,62 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               mkdirSync(testResultsDir, { recursive: true });
             }
             
-            const testProcess = exec('npm run test:coverage:stream', {
+            const command = 'npm run test:coverage:stream';
+            console.log(`[VITE] Executing test command: ${command}`);
+
+            const testProcess = exec(command, {
               cwd: process.cwd(),
-              env: { 
-                ...process.env, 
-                FORCE_COLOR: '1', 
+              env: {
+                ...process.env,
+                FORCE_COLOR: '1',
                 CI: 'true',
-                NODE_ENV: 'test' 
-              } // Enable color output and CI mode for cleaner output
-            });
-
-            testProcess.stdout?.on('data', (data) => {
-              const text = data.toString();
-              // Split by newlines but preserve empty lines for better formatting
-              const lines = text.split('\n');
-              
-              lines.forEach((line: string) => {
-                // Strip ANSI escape codes to get clean text
-                const cleanLine = line.replace(/\\x1b\[[0-9;]*m/g, '');
-                
-                // Send all lines for verbose reporter output
-                res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
-              });
-              
-              // Flush the response to ensure immediate delivery
-              if (res.flushHeaders) {
-                res.flushHeaders();
+                NODE_ENV: 'test',
               }
+            }, (error, stdout, stderr) => {
+              if (error) {
+                console.error(`[VITE] Test execution error: ${error.message}`);
+                res.write(`data: ${JSON.stringify({ type: 'error', message: `Execution failed: ${error.message}`, timestamp: new Date().toISOString() })}\n\n`);
+              }
+              console.log(`[VITE] Test stdout: ${stdout}`);
+              console.error(`[VITE] Test stderr: ${stderr}`);
             });
 
-            testProcess.stderr?.on('data', (data) => {
-              const lines = data.toString().split('\n').filter((line: string) => line.trim());
-              lines.forEach((line: string) => {
-                // Strip ANSI escape codes
-                const cleanLine = line.replace(/\\x1b\[[0-9;]*m/g, '');
-                res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
+            const handleStream = (stream: any, res: any) => {
+              stream.on('data', (data: any) => {
+                const text = data.toString();
+                const lines = text.split('\n');
+                
+                lines.forEach((line: string) => {
+                  const cleanLine = line.replace(/\x1b\[[0-9;]*m/g, '');
+                  res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
+                });
+
+                if (res.flushHeaders) {
+                  res.flushHeaders();
+                }
               });
-            });
+            };
+
+            handleStream(testProcess.stdout, res);
+            handleStream(testProcess.stderr, res);
 
             testProcess.on('close', (code) => {
+              console.log(`[VITE] Test process exited with code ${code}`);
               res.write(`data: ${JSON.stringify({ 
                 type: 'completed', 
                 exit_code: code, 
                 status: code === 0 ? 'completed' : 'failed',
-                message: code === 0 ? 'Tests completed with coverage and results generated!' : 'Tests failed',
+                message: code === 0 ? 'Tests completed!' : 'Tests failed',
                 timestamp: new Date().toISOString() 
               })}\n\n`);
               res.end();
             });
 
-            testProcess.on('error', (error) => {
+            testProcess.on('error', (procError) => {
+              console.error(`[VITE] Test process error: ${procError.message}`);
               res.write(`data: ${JSON.stringify({ 
                 type: 'error', 
-                message: error.message, 
+                message: `Process error: ${procError.message}`,
                 timestamp: new Date().toISOString() 
               })}\n\n`);
               res.end();
