@@ -2,7 +2,7 @@
 import path from "path";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
-import { exec } from 'child_process';
+import { spawn, exec } from 'child_process';
 import { readFile } from 'fs/promises';
 import { existsSync, mkdirSync } from 'fs';
 import type { ConfigEnv, UserConfig } from 'vite';
@@ -65,22 +65,20 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               'Access-Control-Allow-Headers': 'Content-Type',
             });
 
-            // Run vitest with proper configuration (includes JSON reporter)
-            const testProcess = exec('npm run test -- --run', {
-              cwd: process.cwd()
+            // Use spawn for better streaming of stdout/stderr
+            const testProcess = spawn('npm', ['run', 'test', '--', '--run'], {
+              cwd: process.cwd(),
+              shell: true // Use shell to properly handle npm scripts
             });
 
             testProcess.stdout.on('data', (data) => {
               const text = data.toString();
-              // Split by newlines but preserve empty lines for better formatting
               const lines = text.split('\n');
               
               lines.forEach((line: string) => {
-                // Send all lines including empty ones for proper formatting
                 res.write(`data: ${JSON.stringify({ type: 'output', message: line, timestamp: new Date().toISOString() })}\n\n`);
               });
               
-              // Flush the response to ensure immediate delivery
               if (res.flushHeaders) {
                 res.flushHeaders();
               }
@@ -89,8 +87,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
             testProcess.stderr.on('data', (data) => {
               const lines = data.toString().split('\n').filter((line: string) => line.trim());
               lines.forEach((line: string) => {
-                // Strip ANSI escape codes
-                const cleanLine = line.replace(/\\x1b\[[0-9;]*m/g, '');
+                const cleanLine = line.replace(/\x1b\[[0-9;]*m/g, '');
                 res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
               });
             });
@@ -120,91 +117,89 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
             });
           });
 
-          // Test execution with coverage endpoint
+          // Test execution with coverage endpoint (VERSÃO CORRIGIDA)
           server.middlewares.use('/api/run-tests-with-coverage', (req: any, res: any) => {
             if (req.method !== 'POST') {
-              res.statusCode = 405;
-              res.end('Method not allowed');
-              return;
+                res.statusCode = 405;
+                res.end('Method not allowed');
+                return;
             }
 
             res.writeHead(200, {
-              'Content-Type': 'text/event-stream',
-              'Cache-Control': 'no-cache',
-              'Connection': 'keep-alive',
-              'Access-Control-Allow-Origin': '*',
-              'Access-Control-Allow-Headers': 'Content-Type',
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
             });
 
-            // Run vitest with coverage using the proper script (now includes both default and JSON reporters)
-            // Add CI=true to get cleaner output without HTML dumps
-            // Override the reporter to use verbose for better streaming output
-            // When running in Docker, we need to ensure the test results directory exists
+            // Garante que o diretório de resultados de teste exista
             const testResultsDir = path.join(process.cwd(), 'public', 'test-results');
             if (!existsSync(testResultsDir)) {
-              mkdirSync(testResultsDir, { recursive: true });
+                mkdirSync(testResultsDir, { recursive: true });
             }
-            
-            // This will run the tests and redirect all output to a log file.
-            const command = 'npm run test:coverage:stream > /app/test_output.log 2>&1';
-            const testProcess = exec(command, {
-              cwd: process.cwd(),
-              env: {
-                ...process.env,
-                NODE_ENV: 'test'
-              }
+
+            // Usa 'spawn' para executar o comando e capturar a saída em tempo real
+            const testProcess = spawn('npm', ['run', 'test:coverage'], {
+                cwd: process.cwd(),
+                shell: true, // Garante compatibilidade entre SOs (ex: Windows)
+                env: {
+                    ...process.env,
+                    NODE_ENV: 'test',
+                    CI: 'true', // Opcional: Para um output mais limpo no terminal
+                }
             });
 
+            // Captura a saída padrão (stdout)
             testProcess.stdout.on('data', (data) => {
-              const text = data.toString();
-              // Split by newlines but preserve empty lines for better formatting
-              const lines = text.split('\n');
-              
-              lines.forEach((line: string) => {
-                // Strip ANSI escape codes to get clean text
-                const cleanLine = line.replace(/\\x1b\[[0-9;]*m/g, '');
+                const text = data.toString();
+                const lines = text.split('\n');
                 
-                // Send all lines for verbose reporter output
-                res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
-              });
-              
-              // Flush the response to ensure immediate delivery
-              if (res.flushHeaders) {
-                res.flushHeaders();
-              }
+                lines.forEach((line: string) => {
+                    const cleanLine = line.replace(/\x1b\[[0-9;]*m/g, ''); // Remove códigos de cor
+                    res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
+                });
+
+                if (res.flushHeaders) {
+                    res.flushHeaders();
+                }
             });
 
+            // Captura a saída de erro (stderr)
             testProcess.stderr.on('data', (data) => {
-              const lines = data.toString().split('\n').filter((line: string) => line.trim());
-              lines.forEach((line: string) => {
-                // Strip ANSI escape codes
-                const cleanLine = line.replace(/\\x1b\[[0-9;]*m/g, '');
-                res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
-              });
+                const text = data.toString();
+                const lines = text.split('\n');
+                lines.forEach((line: string) => {
+                    const cleanLine = line.replace(/\x1b\[[0-9;]*m/g, '');
+                    res.write(`data: ${JSON.stringify({ type: 'output', message: cleanLine, timestamp: new Date().toISOString() })}\n\n`);
+                });
             });
 
+            // Quando o processo terminar
             testProcess.on('close', (code) => {
-              res.write(`data: ${JSON.stringify({ 
-                type: 'completed', 
-                exit_code: code, 
-                status: code === 0 ? 'completed' : 'failed',
-                message: code === 0 ? 'Tests completed with coverage and results generated!' : 'Tests failed',
-                timestamp: new Date().toISOString() 
-              })}\n\n`);
-              res.end();
+                res.write(`data: ${JSON.stringify({ 
+                    type: 'completed', 
+                    exit_code: code, 
+                    status: code === 0 ? 'completed' : 'failed',
+                    message: code === 0 ? 'Tests completed with coverage!' : 'Tests failed',
+                    timestamp: new Date().toISOString() 
+                })}\n\n`);
+                res.end();
             });
 
+            // Em caso de erro ao iniciar o processo
             testProcess.on('error', (error) => {
-              res.write(`data: ${JSON.stringify({ 
-                type: 'error', 
-                message: error.message, 
-                timestamp: new Date().toISOString() 
-              })}\n\n`);
-              res.end();
+                res.write(`data: ${JSON.stringify({ 
+                    type: 'error', 
+                    message: error.message, 
+                    timestamp: new Date().toISOString() 
+                })}\n\n`);
+                res.end();
             });
 
+            // Se o cliente fechar a conexão
             req.on('close', () => {
-              testProcess.kill();
+                testProcess.kill();
             });
           });
 
@@ -220,7 +215,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
                 res.statusCode = 404;
                 res.end('Test output file not found.');
               }
-            } catch (error) {
+            } catch (error: any) {
               res.statusCode = 500;
               res.end(`Error reading test output file: ${error.message}`);
             }
