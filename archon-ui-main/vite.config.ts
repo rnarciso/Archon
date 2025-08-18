@@ -2,7 +2,7 @@
 import path from "path";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import { readFile } from 'fs/promises';
 import { existsSync, mkdirSync } from 'fs';
 import type { ConfigEnv, UserConfig } from 'vite';
@@ -65,12 +65,13 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               'Access-Control-Allow-Headers': 'Content-Type',
             });
 
-            // Run vitest with proper configuration (includes JSON reporter)
-            const testProcess = exec('npm run test -- --run', {
-              cwd: process.cwd()
+            // Use spawn for better streaming of stdout/stderr
+            const testProcess = spawn('npm', ['run', 'test', '--', '--run'], {
+              cwd: process.cwd(),
+              shell: true // Use shell to properly handle npm scripts
             });
 
-            testProcess.stdout?.on('data', (data) => {
+            testProcess.stdout.on('data', (data) => {
               const text = data.toString();
               // Split by newlines but preserve empty lines for better formatting
               const lines = text.split('\n');
@@ -86,7 +87,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               }
             });
 
-            testProcess.stderr?.on('data', (data) => {
+            testProcess.stderr.on('data', (data) => {
               const lines = data.toString().split('\n').filter((line: string) => line.trim());
               lines.forEach((line: string) => {
                 // Strip ANSI escape codes
@@ -145,17 +146,17 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               mkdirSync(testResultsDir, { recursive: true });
             }
             
-            const testProcess = exec('npm run test:coverage:stream', {
+            // Use spawn for better streaming of stdout/stderr
+            const testProcess = spawn('npm', ['run', 'test:coverage:stream'], {
               cwd: process.cwd(),
-              env: { 
-                ...process.env, 
-                FORCE_COLOR: '1', 
-                CI: 'true',
-                NODE_ENV: 'test' 
-              } // Enable color output and CI mode for cleaner output
+              shell: true, // Use shell to properly handle npm scripts
+              env: {
+                ...process.env,
+                NODE_ENV: 'test'
+              }
             });
 
-            testProcess.stdout?.on('data', (data) => {
+            testProcess.stdout.on('data', (data) => {
               const text = data.toString();
               // Split by newlines but preserve empty lines for better formatting
               const lines = text.split('\n');
@@ -174,7 +175,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               }
             });
 
-            testProcess.stderr?.on('data', (data) => {
+            testProcess.stderr.on('data', (data) => {
               const lines = data.toString().split('\n').filter((line: string) => line.trim());
               lines.forEach((line: string) => {
                 // Strip ANSI escape codes
@@ -324,8 +325,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
         '**/dist/**',
         '**/cypress/**',
         '**/.{idea,git,cache,output,temp}/**',
-        '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
-        '**/*.test.{ts,tsx}',
+        '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*'
       ],
       env: {
         VITE_HOST: host,
