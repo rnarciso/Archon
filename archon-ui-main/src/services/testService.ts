@@ -275,7 +275,32 @@ class TestService {
     if (!response.ok) {
       throw new Error('Test results not available');
     }
-    return await response.json();
+    const data = await response.json();
+
+    // Transform the data to match the expected TestResults interface
+    const transformedData = {
+      summary: {
+        total: data.numTotalTests || 0,
+        passed: data.numPassedTests || 0,
+        failed: data.numFailedTests || 0,
+        skipped: data.numPendingTests || 0,
+        duration: data.testResults.reduce((acc: number, suite: any) => acc + (suite.endTime - suite.startTime), 0),
+      },
+      suites: data.testResults.map((suite: any) => ({
+        name: suite.name,
+        tests: suite.assertionResults.length,
+        passed: suite.assertionResults.filter((r: any) => r.status === 'passed').length,
+        failed: suite.assertionResults.filter((r: any) => r.status === 'failed').length,
+        skipped: suite.assertionResults.filter((r: any) => r.status === 'pending' || r.status === 'todo').length,
+        duration: suite.endTime - suite.startTime,
+        failedTests: suite.assertionResults
+          .filter((r: any) => r.status === 'failed')
+          .map((r: any) => ({ name: r.title, error: r.failureMessages.join('\\n') }))
+      })),
+      timestamp: new Date(data.startTime).toISOString()
+    };
+
+    return transformedData;
   }
 
   /**
