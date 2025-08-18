@@ -40,6 +40,7 @@ export interface TestStatus {
 }
 
 import { getApiUrl, getWebSocketUrl } from '../config/api';
+import { v4 as uuidv4 } from 'uuid';
 
 // Use unified API configuration
 const API_BASE_URL = getApiUrl();
@@ -159,7 +160,7 @@ class TestService {
     onError?: (error: Error) => void,
     onComplete?: () => void
   ): Promise<string> {
-    const execution_id = crypto.randomUUID();
+    const execution_id = uuidv4();
     
     try {
       // Send initial status
@@ -422,6 +423,22 @@ class TestService {
     if (ws) {
       ws.close();
       this.wsConnections.delete(executionId);
+    }
+  }
+
+  /**
+   * Get the content of the test output log file
+   */
+  async getTestOutput(): Promise<string> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/get-test-output`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch test output: ${response.status} ${response.statusText}`);
+      }
+      return await response.text();
+    } catch (error) {
+      console.error('Failed to get test output:', error);
+      return `Failed to load test output: ${error.message}`;
     }
   }
 

@@ -202,18 +202,33 @@ export const TestStatus = () => {
             }
           }
           break;
-        case 'completed':
-          newLogs.push('> Test execution completed.');
-          const summary = updateSummaryFromLogs(newLogs);
+        case 'completed': {
+          newLogs.push('> Test execution completed. Fetching full log...');
+
+          // Asynchronously fetch the full log file now that the test is done
+          testService.getTestOutput().then(fullLog => {
+            updateTestState(testType, (current) => {
+              const logLines = fullLog.split('\n');
+              const summary = updateSummaryFromLogs(logLines);
+              const finalResults = logLines.map(parseTestOutput).filter(r => r !== null) as TestResult[];
+
+              return {
+                ...current,
+                logs: ['> Full log loaded.', ...logLines],
+                results: finalResults,
+                summary,
+              };
+            });
+          });
+
           return {
             ...prev,
             logs: newLogs,
-            results: newResults,
-            summary,
             isRunning: false,
             duration: message.data?.duration,
             exitCode: message.data?.exit_code
           };
+        }
         case 'error':
           newLogs.push(`> Error: ${message.message || 'Unknown error'}`);
           return {
@@ -431,20 +446,20 @@ export const TestStatus = () => {
           <div className="flex items-center gap-4 mb-3 p-2 bg-gray-800 rounded-md flex-shrink-0">
             <div className="text-xs">
               <span className="text-gray-400">Total: </span>
-              <span className="text-white font-medium">{testState.summary.total}</span>
+              <span className="text-white font-medium">{testState.summary?.total ?? 0}</span>
             </div>
             <div className="text-xs">
               <span className="text-gray-400">Passed: </span>
-              <span className="text-green-400 font-medium">{testState.summary.passed}</span>
+              <span className="text-green-400 font-medium">{testState.summary?.passed ?? 0}</span>
             </div>
             <div className="text-xs">
               <span className="text-gray-400">Failed: </span>
-              <span className="text-red-400 font-medium">{testState.summary.failed}</span>
+              <span className="text-red-400 font-medium">{testState.summary?.failed ?? 0}</span>
             </div>
-            {testState.summary.skipped > 0 && (
+            {(testState.summary?.skipped ?? 0) > 0 && (
               <div className="text-xs">
                 <span className="text-gray-400">Skipped: </span>
-                <span className="text-yellow-400 font-medium">{testState.summary.skipped}</span>
+                <span className="text-yellow-400 font-medium">{testState.summary?.skipped ?? 0}</span>
               </div>
             )}
           </div>
@@ -675,7 +690,7 @@ export const TestStatus = () => {
       {/* Collapsible content */}
       <div className={`space-y-4 transition-all duration-300 ${isCollapsed ? 'hidden' : 'block'}`}>
         {displayMode === 'pretty' ? (
-          <>
+          <div className="flex flex-col space-y-6">
             <TestSection
               title="Python Tests"
               testType="mcp"
@@ -691,7 +706,7 @@ export const TestStatus = () => {
               onRun={() => runTest('ui')}
               onCancel={() => cancelTest('ui')}
             />
-          </>
+          </div>
         ) : (
           <TestResultDashboard 
             className="mt-6"

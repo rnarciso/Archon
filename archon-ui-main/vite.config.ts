@@ -70,7 +70,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               cwd: process.cwd()
             });
 
-            testProcess.stdout?.on('data', (data) => {
+            testProcess.stdout.on('data', (data) => {
               const text = data.toString();
               // Split by newlines but preserve empty lines for better formatting
               const lines = text.split('\n');
@@ -86,7 +86,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               }
             });
 
-            testProcess.stderr?.on('data', (data) => {
+            testProcess.stderr.on('data', (data) => {
               const lines = data.toString().split('\n').filter((line: string) => line.trim());
               lines.forEach((line: string) => {
                 // Strip ANSI escape codes
@@ -145,17 +145,17 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               mkdirSync(testResultsDir, { recursive: true });
             }
             
-            const testProcess = exec('npm run test:coverage:stream', {
+            // This will run the tests and redirect all output to a log file.
+            const command = 'npm run test:coverage:stream > /app/test_output.log 2>&1';
+            const testProcess = exec(command, {
               cwd: process.cwd(),
-              env: { 
-                ...process.env, 
-                FORCE_COLOR: '1', 
-                CI: 'true',
-                NODE_ENV: 'test' 
-              } // Enable color output and CI mode for cleaner output
+              env: {
+                ...process.env,
+                NODE_ENV: 'test'
+              }
             });
 
-            testProcess.stdout?.on('data', (data) => {
+            testProcess.stdout.on('data', (data) => {
               const text = data.toString();
               // Split by newlines but preserve empty lines for better formatting
               const lines = text.split('\n');
@@ -174,7 +174,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
               }
             });
 
-            testProcess.stderr?.on('data', (data) => {
+            testProcess.stderr.on('data', (data) => {
               const lines = data.toString().split('\n').filter((line: string) => line.trim());
               lines.forEach((line: string) => {
                 // Strip ANSI escape codes
@@ -206,6 +206,24 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
             req.on('close', () => {
               testProcess.kill();
             });
+          });
+
+          // Endpoint to retrieve the test output file
+          server.middlewares.use('/api/get-test-output', async (req, res) => {
+            try {
+              const logPath = path.join(process.cwd(), 'test_output.log');
+              if (existsSync(logPath)) {
+                const content = await readFile(logPath, 'utf-8');
+                res.setHeader('Content-Type', 'text/plain');
+                res.end(content);
+              } else {
+                res.statusCode = 404;
+                res.end('Test output file not found.');
+              }
+            } catch (error) {
+              res.statusCode = 500;
+              res.end(`Error reading test output file: ${error.message}`);
+            }
           });
 
           // Coverage generation endpoint
@@ -324,8 +342,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => {
         '**/dist/**',
         '**/cypress/**',
         '**/.{idea,git,cache,output,temp}/**',
-        '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
-        '**/*.test.{ts,tsx}',
+        '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*'
       ],
       env: {
         VITE_HOST: host,

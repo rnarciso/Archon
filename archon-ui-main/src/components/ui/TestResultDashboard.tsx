@@ -88,11 +88,17 @@ const TestSummaryCard: React.FC<TestSummaryCardProps> = ({ results, isLoading })
     );
   }
 
-  const { summary } = results;
-  const successRate = summary.total > 0 ? (summary.passed / summary.total) * 100 : 0;
+  const summary = results?.summary;
+  const total = summary?.total ?? 0;
+  const passed = summary?.passed ?? 0;
+  const failed = summary?.failed ?? 0;
+  const skipped = summary?.skipped ?? 0;
+  const duration = summary?.duration ?? 0;
+
+  const successRate = total > 0 ? (passed / total) * 100 : 0;
 
   const getHealthStatus = () => {
-    if (summary.failed === 0 && summary.passed > 0) return { text: 'All Tests Passing', color: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-900/20' };
+    if (failed === 0 && passed > 0) return { text: 'All Tests Passing', color: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-900/20' };
     if (successRate >= 80) return { text: 'Mostly Passing', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-900/20' };
     return { text: 'Tests Failing', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20' };
   };
@@ -127,7 +133,7 @@ const TestSummaryCard: React.FC<TestSummaryCardProps> = ({ results, isLoading })
           className="text-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
         >
           <div className="text-2xl font-bold text-gray-800 dark:text-white mb-1">
-            {summary.total}
+            {total}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Total Tests</div>
         </motion.div>
@@ -140,7 +146,7 @@ const TestSummaryCard: React.FC<TestSummaryCardProps> = ({ results, isLoading })
         >
           <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1 flex items-center justify-center gap-1">
             <CheckCircle className="w-5 h-5" />
-            {summary.passed}
+            {passed}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Passed</div>
         </motion.div>
@@ -153,7 +159,7 @@ const TestSummaryCard: React.FC<TestSummaryCardProps> = ({ results, isLoading })
         >
           <div className="text-2xl font-bold text-red-600 dark:text-red-400 mb-1 flex items-center justify-center gap-1">
             <XCircle className="w-5 h-5" />
-            {summary.failed}
+            {failed}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Failed</div>
         </motion.div>
@@ -166,7 +172,7 @@ const TestSummaryCard: React.FC<TestSummaryCardProps> = ({ results, isLoading })
         >
           <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 mb-1 flex items-center justify-center gap-1">
             <Clock className="w-5 h-5" />
-            {summary.skipped}
+            {skipped}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Skipped</div>
         </motion.div>
@@ -195,7 +201,7 @@ const TestSummaryCard: React.FC<TestSummaryCardProps> = ({ results, isLoading })
       <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4" />
-          <span>Duration: {(summary.duration / 1000).toFixed(2)}s</span>
+          <span>Duration: {(duration / 1000).toFixed(2)}s</span>
         </div>
         {results.timestamp && (
           <div className="flex items-center gap-2">
@@ -206,7 +212,7 @@ const TestSummaryCard: React.FC<TestSummaryCardProps> = ({ results, isLoading })
       </div>
 
       {/* Failed Tests Alert */}
-      {summary.failed > 0 && (
+      {failed > 0 && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
@@ -215,7 +221,7 @@ const TestSummaryCard: React.FC<TestSummaryCardProps> = ({ results, isLoading })
           <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
             <AlertTriangle className="w-4 h-4" />
             <span className="text-sm font-medium">
-              {summary.failed} test{summary.failed > 1 ? 's' : ''} failing - review errors below
+              {failed} test{failed > 1 ? 's' : ''} failing - review errors below
             </span>
           </div>
         </motion.div>
@@ -224,10 +230,11 @@ const TestSummaryCard: React.FC<TestSummaryCardProps> = ({ results, isLoading })
   );
 };
 
-const FailedTestsList: React.FC<{ results: TestResults }> = ({ results }) => {
-  const failedSuites = results.suites.filter(suite => suite.failed > 0);
-  
-  if (failedSuites.length === 0) {
+const FailedTestsList: React.FC<{ results: TestResults | null }> = ({ results }) => {
+  const failed = results?.summary?.failed ?? 0;
+  const failedSuites = results?.suites?.filter(suite => suite.failed > 0) ?? [];
+
+  if (failed === 0 || failedSuites.length === 0) {
     return null;
   }
 
@@ -240,7 +247,7 @@ const FailedTestsList: React.FC<{ results: TestResults }> = ({ results }) => {
       <div className="flex items-center gap-3 mb-4">
         <XCircle className="w-5 h-5 text-red-500" />
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-          Failed Tests ({results.summary.failed})
+          Failed Tests ({failed})
         </h3>
       </div>
 
@@ -400,7 +407,7 @@ export const TestResultDashboard: React.FC<TestResultDashboardProps> = ({
       </div>
 
       {/* Failed Tests */}
-      {results && results.summary.failed > 0 && (
+      {results && (results?.summary?.failed ?? 0) > 0 && (
         <FailedTestsList results={results} />
       )}
     </div>
