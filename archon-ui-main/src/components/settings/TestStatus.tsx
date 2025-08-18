@@ -202,18 +202,33 @@ export const TestStatus = () => {
             }
           }
           break;
-        case 'completed':
-          newLogs.push('> Test execution completed.');
-          const summary = updateSummaryFromLogs(newLogs);
+        case 'completed': {
+          newLogs.push('> Test execution completed. Fetching full log...');
+
+          // Asynchronously fetch the full log file now that the test is done
+          testService.getTestOutput().then(fullLog => {
+            updateTestState(testType, (current) => {
+              const logLines = fullLog.split('\n');
+              const summary = updateSummaryFromLogs(logLines);
+              const finalResults = logLines.map(parseTestOutput).filter(r => r !== null) as TestResult[];
+
+              return {
+                ...current,
+                logs: ['> Full log loaded.', ...logLines],
+                results: finalResults,
+                summary,
+              };
+            });
+          });
+
           return {
             ...prev,
             logs: newLogs,
-            results: newResults,
-            summary,
             isRunning: false,
             duration: message.data?.duration,
             exitCode: message.data?.exit_code
           };
+        }
         case 'error':
           newLogs.push(`> Error: ${message.message || 'Unknown error'}`);
           return {

@@ -427,6 +427,22 @@ class TestService {
   }
 
   /**
+   * Get the content of the test output log file
+   */
+  async getTestOutput(): Promise<string> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/get-test-output`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch test output: ${response.status} ${response.statusText}`);
+      }
+      return await response.text();
+    } catch (error) {
+      console.error('Failed to get test output:', error);
+      return `Failed to load test output: ${error.message}`;
+    }
+  }
+
+  /**
    * Disconnect all WebSocket connections
    */
   disconnectAllStreams(): void {
