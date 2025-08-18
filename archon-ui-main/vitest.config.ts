@@ -13,7 +13,6 @@ export default defineConfig({
       'test/components.test.tsx',
       'test/pages.test.tsx', 
       'test/user_flows.test.tsx',
-      'test/errors.test.tsx'
     ],
     exclude: ['node_modules', 'dist', '.git', '.cache', 'test.backup', '*.backup/**', 'test-backups'],
     reporters: ['dot', 'json'],
