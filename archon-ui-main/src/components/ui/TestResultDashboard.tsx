@@ -72,7 +72,7 @@ const TestSummaryCard: React.FC<TestSummaryCardProps> = ({ results, isLoading })
     );
   }
 
-  if (!results) {
+  if (!results || !results.summary) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -381,9 +381,9 @@ export const TestResultDashboard: React.FC<TestResultDashboardProps> = ({
       )}
 
       {/* Main content */}
-      <div className={`grid gap-6 ${compact ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-2'}`}>
+      <div className={`grid gap-6 ${compact ? 'grid-cols-1' : 'grid-cols-1'}`}>
         {/* Test Summary */}
-        <div>
+        <div className="flex-1">
           <TestSummaryCard results={results} isLoading={loading && !results} />
         </div>
 
