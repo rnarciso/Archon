@@ -37,7 +37,6 @@ describe('Error Handling Tests', () => {
   })
 
   test('timeout error simulation', async () => {
-    vi.useFakeTimers()
     const MockTimeoutComponent = () => {
       const [status, setStatus] = React.useState('idle')
       
@@ -62,14 +61,8 @@ describe('Error Handling Tests', () => {
     fireEvent.click(screen.getByText('Start Request'))
     expect(screen.getByText('Loading...')).toBeInTheDocument()
     
-    // Fast-forward time
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(150)
-    })
-
-    const alert = await screen.findByRole('alert')
+    const alert = await screen.findByRole('alert', {}, { timeout: 500 })
     expect(alert).toHaveTextContent('Request timed out')
-    vi.useRealTimers()
   })
 
   test('form validation errors', () => {

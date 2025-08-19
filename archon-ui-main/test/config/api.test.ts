@@ -47,10 +47,11 @@ describe('API Configuration', () => {
       delete (import.meta.env as any).VITE_API_URL;
       delete (import.meta.env as any).ARCHON_SERVER_PORT;
       
-      const { getApiUrl } = await import('../../src/config/api');
-      
-      expect(() => getApiUrl()).toThrow('ARCHON_SERVER_PORT environment variable is required');
-      expect(() => getApiUrl()).toThrow('Default value: 8181');
+      // The import() promise should reject because a top-level statement calls getApiUrl()
+      // which will throw an error when ARCHON_SERVER_PORT is not set.
+      await expect(import('../../src/config/api')).rejects.toThrow(
+        /ARCHON_SERVER_PORT environment variable is required.*Default value: 8181/
+      );
     });
 
     it('should use ARCHON_SERVER_PORT when set in development', async () => {
