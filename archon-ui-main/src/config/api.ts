@@ -18,14 +18,7 @@ export function getApiUrl(): string {
   }
 
   // 3. Development mode: Construct URL from port
-  const port = import.meta.env.ARCHON_SERVER_PORT
-  if (!port) {
-    throw new Error(
-      'ARCHON_SERVER_PORT environment variable is required. ' +
-        'Please set it in your .env file. ' +
-        'Default value: 8181',
-    )
-  }
+  const port = import.meta.env.VITE_ARCHON_SERVER_PORT || '8181'
 
   const protocol = window.location.protocol
   const hostname = window.location.hostname
