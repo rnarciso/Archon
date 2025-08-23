@@ -25,7 +25,6 @@ export function getApiUrl(): string {
         'Please set it in your .env file. ' +
         'Default value: 8181',
     )
-  }
 
   const protocol = window.location.protocol
   const hostname = window.location.hostname
