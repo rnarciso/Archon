@@ -202,3 +202,21 @@ export function formatSectionTitle(key: string): string {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
+
+/**
+ * Parses a section based on its detected type and content
+ */
+export function parseSection(section: any): any {
+  const { type, confidence } = detectSectionType(section.key, section.content);
+  
+  // Add type information to the section
+  const parsedSection = {
+    ...section,
+    type,
+    confidence,
+    // Additional parsing based on type could be added here
+    parsedContent: section.content // Store original content for now
+  };
+  
+  return parsedSection;
+}
