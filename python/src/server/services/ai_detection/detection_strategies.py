@@ -103,7 +103,7 @@ class ClaudeCodeDetectionStrategy(DetectionStrategy):
             # Check if executable exists
             path = shutil.which(executable)
             if not path:
-                logger.debug(f"Claude Code CLI not found in PATH")
+                logger.debug("Claude Code CLI not found in PATH")
                 return DetectedTool(
                     name=self.tool_name,
                     tool_type=self.tool_type,
@@ -114,7 +114,7 @@ class ClaudeCodeDetectionStrategy(DetectionStrategy):
             # Get version
             version = await self.get_version(path)
             if version is None:
-                logger.warning(f"Claude Code CLI found but version check failed")
+                logger.warning("Claude Code CLI found but version check failed")
                 return DetectedTool(
                     name=self.tool_name,
                     tool_type=self.tool_type,
@@ -157,7 +157,7 @@ class GeminiCLIDetectionStrategy(DetectionStrategy):
             # Check if executable exists
             path = shutil.which(executable)
             if not path:
-                logger.debug(f"Gemini CLI not found in PATH")
+                logger.debug("Gemini CLI not found in PATH")
                 return DetectedTool(
                     name=self.tool_name,
                     tool_type=self.tool_type,
@@ -168,7 +168,7 @@ class GeminiCLIDetectionStrategy(DetectionStrategy):
             # Get version
             version = await self.get_version(path)
             if version is None:
-                logger.warning(f"Gemini CLI found but version check failed")
+                logger.warning("Gemini CLI found but version check failed")
                 return DetectedTool(
                     name=self.tool_name,
                     tool_type=self.tool_type,
@@ -211,7 +211,7 @@ class QwenCodeDetectionStrategy(DetectionStrategy):
             # Check if executable exists
             path = shutil.which(executable)
             if not path:
-                logger.debug(f"Qwen Code not found in PATH")
+                logger.debug("Qwen Code not found in PATH")
                 return DetectedTool(
                     name=self.tool_name,
                     tool_type=self.tool_type,
@@ -222,7 +222,7 @@ class QwenCodeDetectionStrategy(DetectionStrategy):
             # Get version
             version = await self.get_version(path)
             if version is None:
-                logger.warning(f"Qwen Code found but version check failed")
+                logger.warning("Qwen Code found but version check failed")
                 return DetectedTool(
                     name=self.tool_name,
                     tool_type=self.tool_type,

@@ -74,6 +74,11 @@ class ThreadingConfig:
     health_check_interval: float = 30  # System health check frequency
 
 
+class RateLimitExceededError(Exception):
+    """Exception raised when a rate limit is exceeded."""
+    pass
+
+
 class RateLimiter:
     """Thread-safe rate limiter with token bucket algorithm"""
 
@@ -84,14 +89,20 @@ class RateLimiter:
         self.semaphore = asyncio.Semaphore(config.max_concurrent)
         self._lock = asyncio.Lock()
 
-    async def acquire(self, estimated_tokens: int = 8000, progress_callback: Callable | None = None) -> bool:
+    async def acquire(self, estimated_tokens: int = 8000, progress_callback: Callable | None = None, timeout: float | None = None) -> bool:
         """Acquire permission to make API call with token awareness
         
         Args:
             estimated_tokens: Estimated number of tokens for the operation
             progress_callback: Optional async callback for progress updates during wait
+            timeout: Optional timeout in seconds for the acquire loop
         """
+        start_time = time.time()
+        total_waited = 0
         while True:  # Loop instead of recursion to avoid stack overflow
+            if timeout is not None and total_waited > timeout:
+                raise RateLimitExceededError(f"Rate limit acquire timed out after {timeout} seconds")
+
             wait_time_to_sleep = None
             
             async with self._lock:
@@ -128,6 +139,9 @@ class RateLimiter:
                     chunks = int(wait_time_to_sleep / 5)  # 5 second chunks
                     for i in range(chunks):
                         await asyncio.sleep(5)
+                        total_waited += 5
+                        if timeout is not None and total_waited > timeout:
+                            raise RateLimitExceededError(f"Rate limit acquire timed out after {timeout} seconds")
                         remaining = wait_time_to_sleep - (i + 1) * 5
                         if progress_callback:
                             await progress_callback({
@@ -136,10 +150,21 @@ class RateLimiter:
                                 "message": f"waiting {max(0, remaining):.1f}s more..."
                             })
                     # Sleep any remaining time
-                    if wait_time_to_sleep % 5 > 0:
-                        await asyncio.sleep(wait_time_to_sleep % 5)
+                    remaining_sleep = wait_time_to_sleep % 5
+                    if remaining_sleep > 0:
+                        await asyncio.sleep(remaining_sleep)
+                        total_waited += remaining_sleep
+                    
+                    # Send final progress update
+                    if progress_callback:
+                        await progress_callback({
+                            "type": "rate_limit_wait",
+                            "remaining_seconds": 0,
+                            "message": "Resuming operation..."
+                        })
                 else:
                     await asyncio.sleep(wait_time_to_sleep)
+                    total_waited += wait_time_to_sleep
                 # Continue the loop to try again
 
     def _can_make_request(self, estimated_tokens: int) -> bool:
@@ -540,17 +565,18 @@ class ThreadingService:
         logfire_logger.info("Threading service stopped")
 
     @asynccontextmanager
-    async def rate_limited_operation(self, estimated_tokens: int = 8000, progress_callback: Callable | None = None):
+    async def rate_limited_operation(self, estimated_tokens: int = 8000, progress_callback: Callable | None = None, timeout: float | None = None):
         """Context manager for rate-limited operations
         
         Args:
             estimated_tokens: Estimated number of tokens for the operation
             progress_callback: Optional async callback for progress updates during wait
+            timeout: Optional timeout in seconds for the acquire loop
         """
         async with self.rate_limiter.semaphore:
-            can_proceed = await self.rate_limiter.acquire(estimated_tokens, progress_callback)
+            can_proceed = await self.rate_limiter.acquire(estimated_tokens, progress_callback, timeout)
             if not can_proceed:
-                raise Exception("Rate limit exceeded")
+                raise RateLimitExceededError("Rate limit exceeded")
 
             start_time = time.time()
             try:

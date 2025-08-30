@@ -13,6 +13,7 @@ from ...config.logfire_config import safe_span, search_logger
 from ..credential_service import credential_service
 from ..embeddings.contextual_embedding_service import generate_contextual_embeddings_batch
 from ..embeddings.embedding_service import create_embeddings_batch
+from ..utils.progress_utils import create_embedding_progress_wrapper
 
 
 async def add_documents_to_supabase(
@@ -234,21 +235,17 @@ async def add_documents_to_supabase(
                 contextual_contents = batch_contents
 
             # Create embeddings for the batch with rate limit progress support
-            # Create a wrapper for progress callback to handle rate limiting updates
-            async def embedding_progress_wrapper(message: str, percentage: float):
-                # Forward rate limiting messages to the main progress callback
-                if progress_callback and "rate limit" in message.lower():
-                    await progress_callback(
-                        message,
-                        current_percentage,  # Use current batch progress
-                        {"batch": batch_num, "type": "rate_limit_wait"}
-                    )
+            embedding_progress_wrapper = create_embedding_progress_wrapper(
+                progress_callback,
+                current_percentage=current_percentage,
+                batch_num=batch_num
+            )
             
             # Pass progress callback for rate limiting updates
             result = await create_embeddings_batch(
                 contextual_contents,
                 provider=provider,
-                progress_callback=embedding_progress_wrapper if progress_callback else None
+                progress_callback=embedding_progress_wrapper
             )
 
             # Log any failures

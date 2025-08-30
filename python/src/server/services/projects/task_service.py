@@ -37,7 +37,7 @@ except ImportError as e:
 
     # Dummy function when broadcasting is not available
     async def broadcast_task_update(*args, **kwargs):
-        logger.debug(f"Socket.IO broadcast skipped - not available")
+        logger.debug("Socket.IO broadcast skipped - not available")
         pass
 
 except Exception as e:
@@ -50,7 +50,7 @@ except Exception as e:
 
     # Dummy function when broadcasting is not available
     async def broadcast_task_update(*args, **kwargs):
-        logger.debug(f"Socket.IO broadcast skipped - not available")
+        logger.debug("Socket.IO broadcast skipped - not available")
         pass
 
 
