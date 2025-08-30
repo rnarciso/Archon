@@ -280,14 +280,15 @@ export const ButtonPlayground: React.FC = () => {
     return colors[color];
   };
 
-  const copyToClipboard = async () => {
-    try {
-      await copyToClipboardHelper(generateCSS());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy CSS: ', err);
-    }
+  const copyToClipboard = () => {
+    copyToClipboardHelper(generateCSS())
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch((err) => {
+        console.error('Failed to copy CSS: ', err);
+      });
   };
 
   // Corner input component

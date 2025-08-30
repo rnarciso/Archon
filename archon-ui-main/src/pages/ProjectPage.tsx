@@ -845,21 +845,23 @@ export function ProjectPage({
                       
                       {/* Copy Project ID Button */}
                       <button 
-                        onClick={async (e) => {
+                        onClick={(e) => {
                           e.stopPropagation();
-                          try {
-                            await copyToClipboardHelper(project.id);
-                            showToast('Project ID copied to clipboard', 'success');
-                            // Visual feedback
-                            const button = e.currentTarget;
-                            const originalHTML = button.innerHTML;
-                            button.innerHTML = '<svg class="w-3 h-3 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Copied!';
-                            setTimeout(() => {
-                              button.innerHTML = originalHTML;
-                            }, 2000);
-                          } catch (err) {
-                            showToast('Failed to copy Project ID', 'error');
-                          }
+                          const button = e.currentTarget;
+                          const originalHTML = button.innerHTML;
+
+                          copyToClipboardHelper(project.id)
+                            .then(() => {
+                              showToast('Project ID copied to clipboard', 'success');
+                              // Visual feedback
+                              button.innerHTML = '<svg class="w-3 h-3 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Copied!';
+                              setTimeout(() => {
+                                button.innerHTML = originalHTML;
+                              }, 2000);
+                            })
+                            .catch((err) => {
+                              showToast('Failed to copy Project ID', 'error');
+                            });
                         }}
                         className="flex-1 flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors py-1"
                         title="Copy Project ID to clipboard"

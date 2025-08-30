@@ -103,15 +103,16 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
     setActiveExampleIndex(0)
   }, [searchQuery])
 
-  const handleCopyCode = async () => {
+  const handleCopyCode = () => {
     if (activeExample) {
-      try {
-        await copyToClipboardHelper(activeExample.code);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (err) {
-        console.error('Failed to copy code: ', err);
-      }
+      copyToClipboardHelper(activeExample.code)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch((err) => {
+          console.error('Failed to copy code: ', err);
+        });
     }
   };
 

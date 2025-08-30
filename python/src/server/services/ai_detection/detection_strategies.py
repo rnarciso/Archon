@@ -9,7 +9,7 @@ import asyncio
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from ..config.logfire_config import get_logger
+from ...config.logfire_config import get_logger
 from .models import DetectedTool, ToolStatus, ToolType
 
 logger = get_logger(__name__)

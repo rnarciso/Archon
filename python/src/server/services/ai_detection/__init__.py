@@ -7,14 +7,15 @@ installed on the system.
 
 from .agent_detection_service import AgentDetectionService
 from .command_execution_service import CommandExecutionService
-from .models import DetectedTool, ToolStatus, DetectionResult, ExecuteRequest, ExecuteResponse
+from .models import DetectedTool, ToolStatus, ToolType, DetectionResult, ExecuteRequest, ExecuteResponse
 
 __all__ = [
-    'AgentDetectionService', 
+    'AgentDetectionService',
     'CommandExecutionService',
-    'DetectedTool', 
-    'ToolStatus', 
+    'DetectedTool',
+    'ToolStatus',
+    'ToolType',
     'DetectionResult',
-    'ExecuteRequest', 
+    'ExecuteRequest',
     'ExecuteResponse'
 ]

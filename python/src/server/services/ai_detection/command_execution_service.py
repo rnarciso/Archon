@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Any, Set
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from ..config.logfire_config import get_logger, safe_logfire_info, safe_logfire_error
+from ...config.logfire_config import get_logger, safe_logfire_info, safe_logfire_error
 from .models import (
     ToolType,
     ExecuteRequest,

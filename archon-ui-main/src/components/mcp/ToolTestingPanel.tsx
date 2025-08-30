@@ -312,15 +312,16 @@ export const ToolTestingPanel = ({
   };
 
   // Handle copy terminal output
-  const copyTerminalOutput = async () => {
+  const copyTerminalOutput = () => {
     const textContent = terminalOutput.map(line => line.content).join('\n');
-    try {
-      await copyToClipboardHelper(textContent);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy terminal output: ', err);
-    }
+    copyToClipboardHelper(textContent)
+      .then(() => {
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      })
+      .catch((err) => {
+        console.error('Failed to copy terminal output: ', err);
+      });
   };
 
   // Handle resize start

@@ -396,20 +396,22 @@ const DraggableTaskRow = ({
           {/* Copy Task ID Button - Matching Board View */}
           <button 
             type="button"
-            onClick={async (e) => {
+            onClick={(e) => {
               e.stopPropagation();
-              try {
-                await copyToClipboardHelper(task.id);
-                // Visual feedback like in board view
-                const button = e.currentTarget;
-                const originalHTML = button.innerHTML;
-                button.innerHTML = '<div class="flex items-center gap-1"><span class="w-3 h-3 text-green-500">✓</span><span class="text-green-500 text-xs">Copied</span></div>';
-                setTimeout(() => {
-                  button.innerHTML = originalHTML;
-                }, 2000);
-              } catch (err) {
-                showToast('Failed to copy Task ID', 'error');
-              }
+              const button = e.currentTarget;
+              const originalHTML = button.innerHTML;
+
+              copyToClipboardHelper(task.id)
+                .then(() => {
+                  // Visual feedback like in board view
+                  button.innerHTML = '<div class="flex items-center gap-1"><span class="w-3 h-3 text-green-500">✓</span><span class="text-green-500 text-xs">Copied</span></div>';
+                  setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                  }, 2000);
+                })
+                .catch((err) => {
+                  showToast('Failed to copy Task ID', 'error');
+                });
             }}
             className="p-1.5 rounded-full bg-gray-500/20 text-gray-500 hover:bg-gray-500/30 hover:shadow-[0_0_10px_rgba(107,114,128,0.3)] transition-all duration-300"
             title="Copy Task ID to clipboard"

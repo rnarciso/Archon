@@ -119,17 +119,18 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
     }
   };
 
-  const copyToClipboard = async () => {
+  const copyToClipboard = () => {
     const bugReportData: BugReportData = { ...report, context };
     const formattedReport =
       bugReportService.formatReportForClipboard(bugReportData);
 
-    try {
-      await copyToClipboardHelper(formattedReport);
-      showToast("Bug report copied to clipboard", "success");
-    } catch {
-      showToast("Failed to copy to clipboard", "error");
-    }
+    copyToClipboardHelper(formattedReport)
+      .then(() => {
+        showToast("Bug report copied to clipboard", "success");
+      })
+      .catch(() => {
+        showToast("Failed to copy to clipboard", "error");
+      });
   };
 
   if (!isOpen) return null;

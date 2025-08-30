@@ -51,21 +51,22 @@ export const OutputDisplayPanel: React.FC<OutputDisplayPanelProps> = ({
     }
   }, [stdout, stderr, autoScroll]);
 
-  const handleCopy = async () => {
+  const handleCopy = () => {
     const content = (stdout || '') + (stderr ? '\n\nERROR:\n' + stderr : '');
     if (content.trim()) {
-      try {
-        await copyToClipboard(content);
-        setCopied(true);
-        if (onCopy) onCopy(content);
-        
-        setTimeout(() => setCopied(false), 2000);
-      } catch (error) {
-        console.error('Failed to copy output:', error);
-        // Keep the UI feedback even if copy fails
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }
+      copyToClipboard(content)
+        .then(() => {
+          setCopied(true);
+          if (onCopy) onCopy(content);
+          
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch((error) => {
+          console.error('Failed to copy output:', error);
+          // Keep the UI feedback even if copy fails
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
     }
   };
 

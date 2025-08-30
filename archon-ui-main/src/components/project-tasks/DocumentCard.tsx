@@ -50,23 +50,25 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
     }
   };
 
-  const handleCopyId = async (e: React.MouseEvent) => {
+  const handleCopyId = (e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      await copyToClipboardHelper(document.id);
-      showToast('Document ID copied to clipboard', 'success');
-      
-      // Visual feedback
-      const button = e.currentTarget;
-      const originalHTML = button.innerHTML;
-      button.innerHTML = '<div class="flex items-center gap-1"><span class="w-3 h-3 text-green-500">✓</span><span class="text-green-500 text-xs">Copied</span></div>';
-      setTimeout(() => {
-        button.innerHTML = originalHTML;
-      }, 2000);
-    } catch (err) {
-      console.error('Failed to copy Document ID: ', err);
-      showToast('Failed to copy Document ID', 'error');
-    }
+    const button = e.currentTarget;
+    const originalHTML = button.innerHTML;
+
+    copyToClipboardHelper(document.id)
+      .then(() => {
+        showToast('Document ID copied to clipboard', 'success');
+        
+        // Visual feedback
+        button.innerHTML = '<div class="flex items-center gap-1"><span class="w-3 h-3 text-green-500">✓</span><span class="text-green-500 text-xs">Copied</span></div>';
+        setTimeout(() => {
+          button.innerHTML = originalHTML;
+        }, 2000);
+      })
+      .catch((err) => {
+        console.error('Failed to copy Document ID: ', err);
+        showToast('Failed to copy Document ID', 'error');
+      });
   };
   
   return (

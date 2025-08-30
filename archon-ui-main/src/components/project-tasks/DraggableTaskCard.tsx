@@ -4,6 +4,7 @@ import { Edit, Trash2, RefreshCw, Tag, User, Bot, Clipboard } from 'lucide-react
 import { Task } from './TaskTableView';
 import { ItemTypes, getAssigneeIcon, getAssigneeGlow, getOrderColor, getOrderGlow } from '../../lib/task-utils';
 import { copyToClipboard as copyToClipboardHelper } from '../../lib/clipboard';
+import { useToast } from '../../contexts/ToastContext';
 
 export interface DraggableTaskCardProps {
   task: Task;
@@ -28,6 +29,7 @@ export const DraggableTaskCard = ({
   hoveredTaskId,
   onTaskHover,
 }: DraggableTaskCardProps) => {
+  const { showToast } = useToast();
   
   const [{ isDragging }, drag] = useDrag({
     type: ItemTypes.TASK,
@@ -199,20 +201,23 @@ export const DraggableTaskCard = ({
               </div>
               <button 
                 type="button"
-                onClick={async (e) => {
+                onClick={(e) => {
                   e.stopPropagation();
-                  try {
-                    await copyToClipboardHelper(task.id);
-                    // Optional: Add a small toast or visual feedback here
-                    const button = e.currentTarget;
-                    const originalHTML = button.innerHTML;
-                    button.innerHTML = '<span class="text-green-500">Copied!</span>';
-                    setTimeout(() => {
-                      button.innerHTML = originalHTML;
-                    }, 2000);
-                  } catch (err) {
-                    console.error('Failed to copy Task ID: ', err);
-                  }
+                  const button = e.currentTarget;
+                  const originalHTML = button.innerHTML;
+
+                  copyToClipboardHelper(task.id)
+                    .then(() => {
+                      // Optional: Add a small toast or visual feedback here
+                      button.innerHTML = '<span class="text-green-500">Copied!</span>';
+                      setTimeout(() => {
+                        button.innerHTML = originalHTML;
+                      }, 2000);
+                    })
+                    .catch((err) => {
+                      console.error('Failed to copy Task ID: ', err);
+                      showToast('Failed to copy Task ID', 'error');
+                    });
                 }}
                 className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                 title="Copy Task ID to clipboard"

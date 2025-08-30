@@ -190,17 +190,18 @@ export const MCPPage = () => {
     }
   };
 
-  const handleCopyConfig = async () => {
+  const handleCopyConfig = () => {
     if (!config) return;
     
     const configText = getConfigForIDE(selectedIDE);
-    try {
-      await copyToClipboardHelper(configText);
-      showToast('Configuration copied to clipboard', 'success');
-    } catch (err) {
-      console.error('Failed to copy config: ', err);
-      showToast('Failed to copy configuration', 'error');
-    }
+    copyToClipboardHelper(configText)
+      .then(() => {
+        showToast('Configuration copied to clipboard', 'success');
+      })
+      .catch((err) => {
+        console.error('Failed to copy config: ', err);
+        showToast('Failed to copy configuration', 'error');
+      });
   };
 
   const generateCursorDeeplink = () => {

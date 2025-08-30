@@ -9,7 +9,7 @@ import time
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 
-from ..config.logfire_config import get_logger, safe_logfire_info, safe_logfire_error
+from ...config.logfire_config import get_logger, safe_logfire_info, safe_logfire_error
 from .models import (
     DetectedTool, 
     ToolStatus, 
