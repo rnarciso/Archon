@@ -7,6 +7,7 @@ import { useStaggeredEntrance } from '../hooks/useStaggeredEntrance';
 import { useToast } from '../contexts/ToastContext';
 import { mcpServerService, ServerStatus, LogEntry, ServerConfig } from '../services/mcpServerService';
 import { IDEGlobalRules } from '../components/settings/IDEGlobalRules';
+import { copyToClipboard as copyToClipboardHelper } from '../lib/clipboard';
 // import { MCPClients } from '../components/mcp/MCPClients'; // Commented out - feature not implemented
 
 // Supported IDE/Agent types
@@ -189,12 +190,17 @@ export const MCPPage = () => {
     }
   };
 
-  const handleCopyConfig = () => {
+  const handleCopyConfig = async () => {
     if (!config) return;
     
     const configText = getConfigForIDE(selectedIDE);
-    navigator.clipboard.writeText(configText);
-    showToast('Configuration copied to clipboard', 'success');
+    try {
+      await copyToClipboardHelper(configText);
+      showToast('Configuration copied to clipboard', 'success');
+    } catch (err) {
+      console.error('Failed to copy config: ', err);
+      showToast('Failed to copy configuration', 'error');
+    }
   };
 
   const generateCursorDeeplink = () => {

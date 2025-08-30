@@ -42,7 +42,7 @@ export const GenericSection: React.FC<SectionProps> = ({
     // Handle primitives
     if (typeof value === 'string') {
       // Check if the string looks like markdown content
-      const hasMarkdownIndicators = /^#{1,6}\s+.+$|^[-*+]\s+.+$|^\d+\.\s+.+$|```|^\>.+$|\*\*.+\*\*|\*.+\*|`[^`]+`/m.test(value);
+      const hasMarkdownIndicators = /^#{1,6}\s+.+$|^[-*+]\s+.+$|^\d+\.\s+.+$|```|^>.+$|\*\*.+\*\*|\*.+\*|`[^`]+`/m.test(value);
       
       if (hasMarkdownIndicators && value.length > 20) {
         // Render as markdown for content with markdown syntax
@@ -95,7 +95,7 @@ export const GenericSection: React.FC<SectionProps> = ({
             <ul className="space-y-1 mt-2">
               {displayItems.map((item, index) => (
                 <li key={index} className="flex items-start gap-2" style={{ marginLeft: indent }}>
-                  <span className="text-gray-400 mt-0.5">•</span>
+                  <span className="text-gray-400 mt-0.5"> •</span>
                   <span className="text-gray-700 dark:text-gray-300">{formatValue(item)}</span>
                 </li>
               ))}
