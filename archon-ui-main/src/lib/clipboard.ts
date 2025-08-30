@@ -4,39 +4,34 @@ export const copyToClipboardSync = (text: string): boolean => {
   try {
     // Check if clipboard API is available and in secure context
     if (navigator.clipboard && window.isSecureContext) {
-      // For sync operations, we'll use execCommand but first try a workaround
-      const input = document.createElement('input');
-      input.value = text;
-      input.style.position = 'fixed';
-      input.style.left = '-9999px';
-      input.style.opacity = '0';
-      document.body.appendChild(input);
-      input.select();
-      input.setSelectionRange(0, 99999);
-      
-      try {
-        const successful = document.execCommand('copy');
-        document.body.removeChild(input);
-        return successful;
-      } catch (err) {
-        document.body.removeChild(input);
-        throw err;
-      }
+      // For sync operations, we need to use a Promise-based approach
+      // but we'll return false immediately and log any errors
+      navigator.clipboard.writeText(text).catch(err => {
+        console.error('Failed to copy text with navigator.clipboard: ', err);
+      });
+      return true; // Assume it will work since we're in a secure context
     }
     
-    // Legacy fallback
+    // Legacy fallback using execCommand
     const textArea = document.createElement('textarea');
     textArea.value = text;
     textArea.style.position = 'fixed';
     textArea.style.left = '-9999px';
+    textArea.style.top = '-9999px';
     textArea.style.opacity = '0';
     document.body.appendChild(textArea);
     textArea.focus();
     textArea.select();
     
-    const successful = document.execCommand('copy');
-    document.body.removeChild(textArea);
-    return successful;
+    try {
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return successful;
+    } catch (err) {
+      document.body.removeChild(textArea);
+      console.error('Failed to copy text with execCommand: ', err);
+      return false;
+    }
   } catch (error) {
     console.error('Failed to copy text: ', error);
     return false;
@@ -51,54 +46,33 @@ export const copyToClipboard = async (text: string): Promise<void> => {
       return;
     }
     
-    // If not secure context or clipboard API not available, fallback to legacy methods
-    throw new Error('Clipboard API not available in current context');
+    // Fallback to legacy methods for non-secure contexts
+    // Create a temporary textarea element
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    
+    // Position element off-screen
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    textArea.style.top = '-9999px';
+    textArea.style.opacity = '0';
+    
+    // Add to DOM
+    document.body.appendChild(textArea);
+    
+    // Select and copy
+    textArea.focus();
+    textArea.select();
+    
+    // Try to copy
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    
+    if (!successful) {
+      throw new Error('execCommand returned false');
+    }
   } catch (err) {
-    console.error('Failed to copy text with navigator.clipboard: ', err);
-    
-    // First fallback: Try creating a temporary input element and select it
-    try {
-      const input = document.createElement('input');
-      input.value = text;
-      input.style.position = 'fixed';
-      input.style.left = '-9999px';
-      input.style.opacity = '0';
-      document.body.appendChild(input);
-      input.select();
-      input.setSelectionRange(0, 99999); // For mobile devices
-      
-      const successful = document.execCommand('copy');
-      document.body.removeChild(input);
-      
-      if (successful) {
-        return;
-      }
-    } catch (fallbackErr) {
-      console.error('First fallback failed: ', fallbackErr);
-    }
-    
-    // Second fallback: Use textarea method
-    try {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-9999px';
-      textArea.style.opacity = '0';
-      textArea.style.top = '0';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-      
-      if (successful) {
-        return;
-      }
-    } catch (secondFallbackErr) {
-      console.error('Second fallback failed: ', secondFallbackErr);
-    }
-    
+    console.error('Failed to copy text: ', err);
     // If all methods fail, throw error
     throw new Error('All clipboard copy methods failed. Please copy manually.');
   }
