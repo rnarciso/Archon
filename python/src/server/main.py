@@ -20,6 +20,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api_routes.agent_chat_api import router as agent_chat_router
+from .api_routes.ai_agent_api import router as ai_agent_router
 from .api_routes.bug_report_api import router as bug_report_router
 from .api_routes.coverage_api import router as coverage_router
 from .api_routes.internal_api import router as internal_router
@@ -215,6 +216,7 @@ app.include_router(agent_chat_router)
 app.include_router(internal_router)
 app.include_router(coverage_router)
 app.include_router(bug_report_router)
+app.include_router(ai_agent_router)
 
 
 # Root endpoint
@@ -226,7 +228,7 @@ async def root():
         "version": "1.0.0",
         "description": "Backend API for knowledge management and project automation",
         "status": "healthy",
-        "modules": ["settings", "mcp", "mcp-clients", "knowledge", "projects"],
+        "modules": ["settings", "mcp", "mcp-clients", "knowledge", "projects", "ai-agent"],
     }
 
 

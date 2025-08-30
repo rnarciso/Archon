@@ -8,9 +8,11 @@ This package organizes the API into logical modules:
 - knowledge_api: Knowledge base, crawling, and RAG operations
 - projects_api: Project and task management with streaming
 - tests_api: Test execution and streaming with real-time output
+- ai_agent_api: AI agent detection and command execution
 """
 
 from .agent_chat_api import router as agent_chat_router
+from .ai_agent_api import router as ai_agent_router
 from .internal_api import router as internal_router
 from .knowledge_api import router as knowledge_router
 from .mcp_api import router as mcp_router
@@ -26,4 +28,5 @@ __all__ = [
     "tests_router",
     "agent_chat_router",
     "internal_router",
+    "ai_agent_router",
 ]

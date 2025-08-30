@@ -3,7 +3,7 @@ import { PRPContent } from './types/prp.types';
 import { MetadataSection } from './sections/MetadataSection';
 import { SectionRenderer } from './renderers/SectionRenderer';
 import { normalizePRPDocument } from './utils/normalizer';
-import { processContentForPRP, isMarkdownContent, isDocumentWithMetadata } from './utils/markdownParser';
+import { isMarkdownContent, isDocumentWithMetadata } from './utils/contentIdentifier';
 import { MarkdownDocumentRenderer } from './components/MarkdownDocumentRenderer';
 import './PRPViewer.css';
 
@@ -147,7 +147,6 @@ export const PRPViewer: React.FC<PRPViewerProps> = ({
   // 5. Final fallback to original PRPViewer logic for purely structured JSON content
   console.log('PRPViewer: Using standard JSON structure renderer as final fallback');
   
-  // First, check if content is raw markdown and process it
   let processedForPRP = content;
   
   // Handle the case where content is a raw markdown string (non-markdown strings)
@@ -158,9 +157,6 @@ export const PRPViewer: React.FC<PRPViewerProps> = ({
       content: content,
       document_type: 'text'
     };
-  } else if (typeof content === 'object' && content !== null) {
-    // For objects, process normally
-    processedForPRP = processContentForPRP(content);
   }
 
   // Ensure we have an object to work with

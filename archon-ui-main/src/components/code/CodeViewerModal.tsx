@@ -30,6 +30,7 @@ import 'prismjs/components/prism-graphql'
 import 'prismjs/themes/prism-tomorrow.css'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
+import { copyToClipboard as copyToClipboardHelper } from '../../lib/clipboard';
 
 export interface CodeExample {
   id: string
@@ -104,11 +105,16 @@ export const CodeViewerModal: React.FC<CodeViewerModalProps> = ({
 
   const handleCopyCode = () => {
     if (activeExample) {
-      navigator.clipboard.writeText(activeExample.code)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      copyToClipboardHelper(activeExample.code)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch((err) => {
+          console.error('Failed to copy code: ', err);
+        });
     }
-  }
+  };
 
   // Using React Portal to render the modal at the root level
   return createPortal(

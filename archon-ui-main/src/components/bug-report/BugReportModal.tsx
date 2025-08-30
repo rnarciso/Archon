@@ -6,6 +6,7 @@ import { Input } from "../ui/Input";
 import { Card } from "../ui/Card";
 import { Select } from "../ui/Select";
 import { useToast } from "../../contexts/ToastContext";
+import { copyToClipboard as copyToClipboardHelper } from "../../lib/clipboard";
 import {
   bugReportService,
   BugContext,
@@ -99,7 +100,7 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
         // Fallback: copy to clipboard
         const formattedReport =
           bugReportService.formatReportForClipboard(bugReportData);
-        await navigator.clipboard.writeText(formattedReport);
+        await copyToClipboardHelper(formattedReport);
 
         showToast(
           "Failed to create GitHub issue, but bug report was copied to clipboard. Please paste it in a new GitHub issue.",
@@ -118,17 +119,18 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({
     }
   };
 
-  const copyToClipboard = async () => {
+  const copyToClipboard = () => {
     const bugReportData: BugReportData = { ...report, context };
     const formattedReport =
       bugReportService.formatReportForClipboard(bugReportData);
 
-    try {
-      await navigator.clipboard.writeText(formattedReport);
-      showToast("Bug report copied to clipboard", "success");
-    } catch {
-      showToast("Failed to copy to clipboard", "error");
-    }
+    copyToClipboardHelper(formattedReport)
+      .then(() => {
+        showToast("Bug report copied to clipboard", "success");
+      })
+      .catch(() => {
+        showToast("Failed to copy to clipboard", "error");
+      });
   };
 
   if (!isOpen) return null;

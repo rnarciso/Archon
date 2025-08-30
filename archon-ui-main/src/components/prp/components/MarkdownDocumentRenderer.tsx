@@ -1,7 +1,41 @@
 import React from 'react';
-import { ParsedMarkdownDocument, parseMarkdownToDocument, isDocumentWithMetadata, isMarkdownContent } from '../utils/markdownParser';
+import { parseMarkdownToPrp } from '../utils/markdownParser';
+import { isDocumentWithMetadata, isMarkdownContent } from '../utils/contentIdentifier';
 import { MetadataSection } from '../sections/MetadataSection';
 import { MarkdownSectionRenderer } from './MarkdownSectionRenderer';
+
+interface Section {
+  title: string;
+  content: string;
+  level: number;
+  type: string;
+  data: any;
+  sectionKey?: string;
+  templateType?: string;
+}
+
+interface ParsedMarkdownDocument {
+  sections: Section[];
+  metadata: any;
+  hasMetadata: boolean;
+  title?: string;
+}
+
+const parseMarkdownToDocument = (markdown: string): ParsedMarkdownDocument => {
+    const sections: Section[] = parseMarkdownToPrp(markdown);
+    const titleSection = sections.find(s => s.level === 1);
+    const title = titleSection ? titleSection.title : 'Document';
+    const metadataSection = sections.find(s => s.type === 'metadata');
+    const metadata = metadataSection ? metadataSection.data : {};
+    const hasMetadata = !!metadataSection;
+
+    return {
+        sections: sections,
+        title: title,
+        metadata: metadata,
+        hasMetadata: hasMetadata
+    };
+}
 
 interface MarkdownDocumentRendererProps {
   content: any;
