@@ -4,5 +4,4 @@ __pycache__
 .claude/settings.local.json
 PRPs/local
 /logs/
-python/
 venv/
