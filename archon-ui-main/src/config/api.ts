@@ -7,14 +7,14 @@
 
 // Get the API URL from environment or construct it
 export function getApiUrl(): string {
-  // 1. Priority: VITE_API_URL from environment (e.g., Docker)
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL
-  }
-
-  // 2. Production mode: Use relative path
+  // 1. Production mode: Use relative path (highest priority)
   if (import.meta.env.PROD) {
     return ''
+  }
+
+  // 2. Priority: VITE_API_URL from environment (e.g., Docker)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
   }
 
   // 3. Development mode: Construct URL from port

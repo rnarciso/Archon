@@ -1,11 +1,12 @@
 """
-Detection strategies for different AI tools
+Detection strategies for different AI tools with container support
 """
 
 import shutil
 import subprocess
 import re
 import asyncio
+import os
 from typing import Dict, Any, Optional
 from datetime import datetime
 
@@ -87,50 +88,113 @@ class DetectionStrategy:
             return first_line
         
         return None
+    
+    async def _check_docker_container(self, container_name: str) -> bool:
+        """Check if a Docker container is running"""
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "docker", "ps", "--format", "{{.Names}}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode == 0:
+                containers = stdout.decode('utf-8', errors='ignore').strip().split('\n')
+                return container_name in containers
+            return False
+        except Exception:
+            return False
+    
+    async def _check_docker_image(self, image_name: str) -> bool:
+        """Check if a Docker image exists"""
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "docker", "images", "--format", "{{.Repository}}:{{.Tag}}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode == 0:
+                images = stdout.decode('utf-8', errors='ignore').strip().split('\n')
+                return any(image_name in image for image in images)
+            return False
+        except Exception:
+            return False
 
 
 class ClaudeCodeDetectionStrategy(DetectionStrategy):
-    """Detection strategy for Claude Code CLI"""
+    """Detection strategy for Claude Code CLI with container support"""
     
     def __init__(self):
         super().__init__("Claude Code", ToolType.CLAUDE_CODE)
     
     async def detect(self) -> DetectedTool:
-        """Detect Claude Code CLI"""
+        """Detect Claude Code CLI with container support"""
         executable = "claude"
         
         try:
-            # Check if executable exists
+            # First check if it's a direct executable
             path = shutil.which(executable)
-            if not path:
-                logger.debug("Claude Code CLI not found in PATH")
+            if path:
+                # Try to get version
+                version = await self.get_version(path)
+                if version is not None:
+                    logger.info(f"Detected Claude Code CLI at {path}, version {version}")
+                    return DetectedTool(
+                        name=self.tool_name,
+                        tool_type=self.tool_type,
+                        status=ToolStatus.AVAILABLE,
+                        executable_path=path,
+                        version=version,
+                        metadata={"command": "claude", "type": "executable"}
+                    )
+            
+            # Check if it's an alias or script that works
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    "claude", "--help",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await process.communicate(timeout=5)
+                
+                if process.returncode == 0 or process.returncode == 1:  # Help commands often return 1
+                    # Try to get version through the alias
+                    version = await self.get_version("claude")
+                    logger.info(f"Detected Claude Code CLI via alias, version {version or 'unknown'}")
+                    return DetectedTool(
+                        name=self.tool_name,
+                        tool_type=self.tool_type,
+                        status=ToolStatus.AVAILABLE,
+                        executable_path="claude",
+                        version=version,
+                        metadata={"command": "claude", "type": "alias"}
+                    )
+            except asyncio.TimeoutError:
+                pass
+            except Exception:
+                pass
+            
+            # Check for Docker container
+            if await self._check_docker_container("claude-code") or await self._check_docker_image("claude-code"):
+                logger.info("Detected Claude Code via Docker container")
                 return DetectedTool(
                     name=self.tool_name,
                     tool_type=self.tool_type,
-                    status=ToolStatus.MISSING,
-                    metadata={"reason": "Not found in PATH"}
+                    status=ToolStatus.AVAILABLE,
+                    executable_path="docker",
+                    version="container",
+                    metadata={"command": "claude", "type": "docker", "container": "claude-code"}
                 )
             
-            # Get version
-            version = await self.get_version(path)
-            if version is None:
-                logger.warning("Claude Code CLI found but version check failed")
-                return DetectedTool(
-                    name=self.tool_name,
-                    tool_type=self.tool_type,
-                    status=ToolStatus.ERROR,
-                    executable_path=path,
-                    metadata={"reason": "Version check failed"}
-                )
-            
-            logger.info(f"Detected Claude Code CLI at {path}, version {version}")
+            logger.debug("Claude Code CLI not found")
             return DetectedTool(
                 name=self.tool_name,
                 tool_type=self.tool_type,
-                status=ToolStatus.AVAILABLE,
-                executable_path=path,
-                version=version,
-                metadata={"command": "claude"}
+                status=ToolStatus.MISSING,
+                metadata={"reason": "Not found in PATH or as alias"}
             )
             
         except Exception as e:
@@ -144,47 +208,76 @@ class ClaudeCodeDetectionStrategy(DetectionStrategy):
 
 
 class GeminiCLIDetectionStrategy(DetectionStrategy):
-    """Detection strategy for Gemini CLI"""
+    """Detection strategy for Gemini CLI with container support"""
     
     def __init__(self):
         super().__init__("Gemini CLI", ToolType.GEMINI_CLI)
     
     async def detect(self) -> DetectedTool:
-        """Detect Gemini CLI"""
+        """Detect Gemini CLI with container support"""
         executable = "gemini"
         
         try:
-            # Check if executable exists
+            # First check if it's a direct executable
             path = shutil.which(executable)
-            if not path:
-                logger.debug("Gemini CLI not found in PATH")
+            if path:
+                # Try to get version
+                version = await self.get_version(path)
+                if version is not None:
+                    logger.info(f"Detected Gemini CLI at {path}, version {version}")
+                    return DetectedTool(
+                        name=self.tool_name,
+                        tool_type=self.tool_type,
+                        status=ToolStatus.AVAILABLE,
+                        executable_path=path,
+                        version=version,
+                        metadata={"command": "gemini", "type": "executable"}
+                    )
+            
+            # Check if it's an alias or script that works
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    "gemini", "--help",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await process.communicate(timeout=5)
+                
+                if process.returncode == 0 or process.returncode == 1:  # Help commands often return 1
+                    # Try to get version through the alias
+                    version = await self.get_version("gemini")
+                    logger.info(f"Detected Gemini CLI via alias, version {version or 'unknown'}")
+                    return DetectedTool(
+                        name=self.tool_name,
+                        tool_type=self.tool_type,
+                        status=ToolStatus.AVAILABLE,
+                        executable_path="gemini",
+                        version=version,
+                        metadata={"command": "gemini", "type": "alias"}
+                    )
+            except asyncio.TimeoutError:
+                pass
+            except Exception:
+                pass
+            
+            # Check for Docker container
+            if await self._check_docker_container("gemini-cli") or await self._check_docker_image("gemini-cli"):
+                logger.info("Detected Gemini CLI via Docker container")
                 return DetectedTool(
                     name=self.tool_name,
                     tool_type=self.tool_type,
-                    status=ToolStatus.MISSING,
-                    metadata={"reason": "Not found in PATH"}
+                    status=ToolStatus.AVAILABLE,
+                    executable_path="docker",
+                    version="container",
+                    metadata={"command": "gemini", "type": "docker", "container": "gemini-cli"}
                 )
             
-            # Get version
-            version = await self.get_version(path)
-            if version is None:
-                logger.warning("Gemini CLI found but version check failed")
-                return DetectedTool(
-                    name=self.tool_name,
-                    tool_type=self.tool_type,
-                    status=ToolStatus.ERROR,
-                    executable_path=path,
-                    metadata={"reason": "Version check failed"}
-                )
-            
-            logger.info(f"Detected Gemini CLI at {path}, version {version}")
+            logger.debug("Gemini CLI not found")
             return DetectedTool(
                 name=self.tool_name,
                 tool_type=self.tool_type,
-                status=ToolStatus.AVAILABLE,
-                executable_path=path,
-                version=version,
-                metadata={"command": "gemini"}
+                status=ToolStatus.MISSING,
+                metadata={"reason": "Not found in PATH or as alias"}
             )
             
         except Exception as e:
@@ -198,47 +291,79 @@ class GeminiCLIDetectionStrategy(DetectionStrategy):
 
 
 class QwenCodeDetectionStrategy(DetectionStrategy):
-    """Detection strategy for Qwen Code"""
+    """Detection strategy for Qwen Code with container support"""
     
     def __init__(self):
         super().__init__("Qwen Code", ToolType.QWEN_CODE)
     
     async def detect(self) -> DetectedTool:
-        """Detect Qwen Code"""
+        """Detect Qwen Code with container support"""
         executable = "qwen-code"
         
         try:
-            # Check if executable exists
+            # First check if it's a direct executable
             path = shutil.which(executable)
-            if not path:
-                logger.debug("Qwen Code not found in PATH")
-                return DetectedTool(
-                    name=self.tool_name,
-                    tool_type=self.tool_type,
-                    status=ToolStatus.MISSING,
-                    metadata={"reason": "Not found in PATH"}
-                )
+            if path:
+                # Try to get version
+                version = await self.get_version(path)
+                if version is not None:
+                    logger.info(f"Detected Qwen Code at {path}, version {version}")
+                    return DetectedTool(
+                        name=self.tool_name,
+                        tool_type=self.tool_type,
+                        status=ToolStatus.AVAILABLE,
+                        executable_path=path,
+                        version=version,
+                        metadata={"command": "qwen-code", "type": "executable"}
+                    )
             
-            # Get version
-            version = await self.get_version(path)
-            if version is None:
-                logger.warning("Qwen Code found but version check failed")
-                return DetectedTool(
-                    name=self.tool_name,
-                    tool_type=self.tool_type,
-                    status=ToolStatus.ERROR,
-                    executable_path=path,
-                    metadata={"reason": "Version check failed"}
-                )
+            # Check if it's an alias or script that works (try both qwen-code and qwen)
+            for cmd in ["qwen-code", "qwen"]:
+                try:
+                    process = await asyncio.create_subprocess_exec(
+                        cmd, "--help",
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    stdout, stderr = await process.communicate(timeout=5)
+                    
+                    if process.returncode == 0 or process.returncode == 1:  # Help commands often return 1
+                        # Try to get version through the alias
+                        version = await self.get_version(cmd)
+                        logger.info(f"Detected Qwen Code via alias '{cmd}', version {version or 'unknown'}")
+                        return DetectedTool(
+                            name=self.tool_name,
+                            tool_type=self.tool_type,
+                            status=ToolStatus.AVAILABLE,
+                            executable_path=cmd,
+                            version=version,
+                            metadata={"command": cmd, "type": "alias"}
+                        )
+                except asyncio.TimeoutError:
+                    pass
+                except Exception:
+                    pass
             
-            logger.info(f"Detected Qwen Code at {path}, version {version}")
+            # Check for Docker container
+            container_names = ["qwen-code", "qwen"]
+            for container_name in container_names:
+                if await self._check_docker_container(container_name) or await self._check_docker_image(container_name):
+                    logger.info(f"Detected Qwen Code via Docker container '{container_name}'")
+                    return DetectedTool(
+                        name=self.tool_name,
+                        tool_type=self.tool_type,
+                        status=ToolStatus.AVAILABLE,
+                        executable_path="docker",
+                        version="container",
+                        metadata={"command": "qwen-code", "type": "docker", "container": container_name}
+                    )
+            
+            logger.debug("Qwen Code not found")
             return DetectedTool(
                 name=self.tool_name,
                 tool_type=self.tool_type,
-                status=ToolStatus.AVAILABLE,
-                executable_path=path,
-                version=version,
-                metadata={"command": "qwen-code"}
+                status=ToolStatus.MISSING,
+                metadata={"reason": "Not found in PATH or as alias"}
             )
             
         except Exception as e:

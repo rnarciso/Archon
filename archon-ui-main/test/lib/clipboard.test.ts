@@ -58,10 +58,14 @@ describe('clipboard utilities', () => {
           position: '',
           left: '',
           top: '',
-          opacity: ''
+          opacity: '',
+          pointerEvents: '',
+          zIndex: '',
+          whiteSpace: ''
         },
         focus: vi.fn(),
-        select: vi.fn()
+        select: vi.fn(),
+        setSelectionRange: vi.fn()
       };
       
       const mockCreateElement = vi.spyOn(document, 'createElement').mockReturnValue(mockTextArea as any);
@@ -104,10 +108,14 @@ describe('clipboard utilities', () => {
           position: '',
           left: '',
           top: '',
-          opacity: ''
+          opacity: '',
+          pointerEvents: '',
+          zIndex: '',
+          whiteSpace: ''
         },
         focus: vi.fn(),
-        select: vi.fn()
+        select: vi.fn(),
+        setSelectionRange: vi.fn()
       };
       
       const mockCreateElement = vi.spyOn(document, 'createElement').mockReturnValue(mockTextArea as any);
@@ -167,10 +175,14 @@ describe('clipboard utilities', () => {
           position: '',
           left: '',
           top: '',
-          opacity: ''
+          opacity: '',
+          pointerEvents: '',
+          zIndex: '',
+          whiteSpace: ''
         },
         focus: vi.fn(),
-        select: vi.fn()
+        select: vi.fn(),
+        setSelectionRange: vi.fn()
       };
       
       const mockCreateElement = vi.spyOn(document, 'createElement').mockReturnValue(mockTextArea as any);
@@ -216,10 +228,14 @@ describe('clipboard utilities', () => {
           position: '',
           left: '',
           top: '',
-          opacity: ''
+          opacity: '',
+          pointerEvents: '',
+          zIndex: '',
+          whiteSpace: ''
         },
         focus: vi.fn(),
-        select: vi.fn()
+        select: vi.fn(),
+        setSelectionRange: vi.fn()
       };
       
       const mockCreateElement = vi.spyOn(document, 'createElement').mockReturnValue(mockTextArea as any);

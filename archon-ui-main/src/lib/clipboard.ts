@@ -32,8 +32,18 @@ export const copyToClipboardSync = (text: string): boolean => {
     // Set selection range for better macOS compatibility
     // For very long text, use a smaller selection range
     const selectionEnd = Math.min(text.length, 9999);
-    textArea.setSelectionRange(0, selectionEnd);
-    textArea.select();
+    
+    // Check if setSelectionRange exists before calling it
+    if (typeof textArea.setSelectionRange === 'function') {
+      textArea.setSelectionRange(0, selectionEnd);
+    }
+    // Focus and select
+    if (typeof textArea.focus === 'function') {
+      textArea.focus();
+    }
+    if (typeof textArea.select === 'function') {
+      textArea.select();
+    }
     
     try {
       const successful = document.execCommand('copy');
@@ -101,11 +111,19 @@ export const copyToClipboard = async (text: string): Promise<void> => {
         // Set selection range for better macOS compatibility
         // For very long text, use a smaller selection range
         const selectionEnd = Math.min(text.length, 9999);
-        textArea.setSelectionRange(0, selectionEnd);
+        
+        // Check if setSelectionRange exists before calling it
+        if (typeof textArea.setSelectionRange === 'function') {
+          textArea.setSelectionRange(0, selectionEnd);
+        }
         
         // Focus and select
-        textArea.focus();
-        textArea.select();
+        if (typeof textArea.focus === 'function') {
+          textArea.focus();
+        }
+        if (typeof textArea.select === 'function') {
+          textArea.select();
+        }
         
         // Try to copy with a small delay for better macOS compatibility
         setTimeout(() => {

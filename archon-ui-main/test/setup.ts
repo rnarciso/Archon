@@ -81,3 +81,12 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }))
+
+// Mock additional DOM methods for clipboard tests
+Object.defineProperty(document, 'execCommand', {
+  value: vi.fn().mockReturnValue(true),
+  configurable: true
+})
+
+// Mock setSelectionRange method on textarea elements
+HTMLTextAreaElement.prototype.setSelectionRange = vi.fn()

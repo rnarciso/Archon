@@ -162,6 +162,7 @@ class CommandExecutor:
             ExecuteResponse with execution results
         """
         start_time = datetime.now()
+        self._request = request  # Store request for access in other methods
         
         try:
             # Step 1: Validate command
@@ -274,18 +275,50 @@ class CommandExecutor:
             # Clean up tracking
             if process_id in self._running_processes:
                 del self._running_processes[process_id]
+            # Clean up request reference
+            if hasattr(self, '_request'):
+                delattr(self, '_request')
     
     def _build_command_parts(self, tool: DetectedTool, command: str) -> List[str]:
         """Build command parts with proper quoting"""
         try:
-            # Get the base command from tool metadata
-            base_command = tool.metadata.get("command", tool.tool_type.value)
+            # Check if this is a Docker-based tool
+            tool_type = tool.metadata.get("type", "executable")
             
-            # Use shlex to split the command properly
-            if command.strip():
-                command_parts = [base_command] + shlex.split(command)
+            if tool_type == "docker":
+                # For Docker containers, build a docker run command
+                container_name = tool.metadata.get("container", tool.tool_type.value)
+                base_command = tool.metadata.get("command", tool.tool_type.value)
+                
+                # Build docker run command
+                command_parts = ["docker", "run", "--rm"]
+                
+                # Add volume mounts if working directory is specified
+                if hasattr(self, '_request') and self._request.working_directory:
+                    work_dir = self._request.working_directory
+                    # Ensure the working directory exists
+                    os.makedirs(work_dir, exist_ok=True)
+                    command_parts.extend(["-v", f"{work_dir}:{work_dir}", "-w", work_dir])
+                
+                # Add the container and the actual command
+                command_parts.append(container_name)
+                command_parts.append(base_command)
+                
+                # Add the user command
+                if command.strip():
+                    # Split the user command and add it to the docker command
+                    user_command_parts = shlex.split(command)
+                    command_parts.extend(user_command_parts)
+                    
             else:
-                command_parts = [base_command]
+                # Get the base command from tool metadata
+                base_command = tool.metadata.get("command", tool.tool_type.value)
+                
+                # Use shlex to split the command properly
+                if command.strip():
+                    command_parts = [base_command] + shlex.split(command)
+                else:
+                    command_parts = [base_command]
             
             return command_parts
             

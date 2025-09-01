@@ -42,7 +42,7 @@ export const AIAgentPage = () => {
   const [error, setError] = useState<Error | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [customTimeout, setCustomTimeout] = useState(30);
-  const { addToast } = useToast();
+  const { showToast } = useToast();
   
   // Load tools on component mount
   useEffect(() => {
@@ -72,11 +72,7 @@ export const AIAgentPage = () => {
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Failed to load AI tools');
       setError(err);
-      addToast({
-        type: 'error',
-        title: 'Error loading tools',
-        message: err.message
-      });
+      showToast(`${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -90,19 +86,11 @@ export const AIAgentPage = () => {
       const result = await detectTools();
       setTools(result.tools);
       setRefreshCount(prev => prev + 1);
-      addToast({
-        type: 'success',
-        title: 'Tools refreshed',
-        message: `Detected ${result.total_detected} available tools`
-      });
+      showToast(`Detected ${result.total_detected} available tools`, 'success');
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Failed to refresh AI tools');
       setError(err);
-      addToast({
-        type: 'error',
-        title: 'Error refreshing tools',
-        message: err.message
-      });
+      showToast(`${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -122,21 +110,13 @@ export const AIAgentPage = () => {
         timeout_seconds: timeoutSeconds
       };
       
-      addToast({
-        type: 'info',
-        title: 'Executing command',
-        message: `Running "${command.substring(0, 50)}${command.length > 50 ? '...' : ''}" with ${toolType}`,
-      });
+      showToast(`Running "${command.substring(0, 50)}${command.length > 50 ? '...' : ''}" with ${toolType}`, 'info');
       
       const result = await executeCommand(request);
       setExecutionResult(result);
       
       if (result.success) {
-        addToast({
-          type: 'success',
-          title: 'Command executed successfully',
-          message: `Command completed with return code ${result.return_code} in ${result.execution_time_ms}ms`
-        });
+        showToast(`Command completed with return code ${result.return_code} in ${result.execution_time_ms}ms`, 'success');
       } else {
         // Provide more detailed error feedback
         const errorMessage = result.error_message || `Command failed with return code ${result.return_code}`;
@@ -146,11 +126,7 @@ export const AIAgentPage = () => {
           detailedMessage += `\n\nError output:\n${result.stderr}`;
         }
         
-        addToast({
-          type: 'error',
-          title: 'Command failed',
-          message: detailedMessage
-        });
+        showToast(`${detailedMessage}`, 'error');
       }
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Failed to execute command');
@@ -168,18 +144,14 @@ export const AIAgentPage = () => {
         errorMessage = 'Permission denied. Please check if the command has the required permissions.';
       }
       
-      addToast({
-        type: 'error',
-        title: 'Execution error',
-        message: errorMessage
-      });
+      showToast(`${errorMessage}`, 'error');
       
       // Show technical details in console
       console.error('Command execution failed:', error);
     } finally {
       setExecuting(false);
     }
-  }, [addToast]);
+  }, [showToast, customTimeout]);
   
   // Get available tools for selection
   const availableTools = tools.filter(tool => tool.status === 'available');
@@ -189,12 +161,8 @@ export const AIAgentPage = () => {
     if (!content) return;
     
     copyToClipboard(content);
-    addToast({
-      type: 'success',
-      title: 'Copied to clipboard',
-      message: 'Output copied to clipboard'
-    });
-  }, [addToast]);
+    showToast('Output copied to clipboard', 'success');
+  }, [showToast]);
 
   // Clear execution result
   const handleClearOutput = useCallback(() => {
