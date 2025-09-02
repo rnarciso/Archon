@@ -370,8 +370,13 @@ class ProjectService:
     def archive_project(self, project_id: str, archived: bool = True) -> tuple[bool, dict[str, Any]]:
         """
         Archive or unarchive a project.
-        This method is robust to the old data inconsistency where the archived key was capitalized.
-        It attempts to update both `archived` and `Archived` fields to handle old data.
+
+        Args:
+            project_id: The project ID to archive/unarchive
+            archived: True to archive, False to unarchive (default: True)
+
+        Returns:
+            Tuple of (success, result_dict)
         """
         try:
             # Check if project exists
@@ -384,16 +389,10 @@ class ProjectService:
             if not check_response.data:
                 return False, {"error": f"Project with ID {project_id} not found"}
 
-            # Update both possible archived fields to handle inconsistent data
-            # Supabase update should ignore columns that don't exist in the table
-            update_payload = {
-                "archived": archived,
-                "Archived": archived,
-            }
-
+            # Update the archived field
             response = (
                 self.supabase_client.table("archon_projects")
-                .update(update_payload)
+                .update({"archived": archived})
                 .eq("id", project_id)
                 .execute()
             )
