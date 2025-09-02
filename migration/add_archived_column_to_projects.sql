@@ -1,0 +1,1 @@
+ALTER TABLE archon_projects ADD COLUMN archived BOOLEAN DEFAULT FALSE;
