@@ -38,24 +38,18 @@ const getProjectIcon = (iconName?: string) => {
   return iconMap[iconName as keyof typeof iconMap] || <Briefcase className="w-5 h-5" />;
 };
 
-export function ProjectPage({
+export function ArchivePage({
   className = '',
   'data-id': dataId
 }: ProjectPageProps) {
   // State management for real data
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [projectTaskCounts, setProjectTaskCounts] = useState<Record<string, { todo: number; doing: number; done: number }>>({});
-  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
-  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [projectsError, setProjectsError] = useState<string | null>(null);
-  const [tasksError, setTasksError] = useState<string | null>(null);
-  
-  // UI state
-  const [activeTab, setActiveTab] = useState('tasks');
-  const [showProjectDetails, setShowProjectDetails] = useState(false);
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+  
+  // Filter state for active vs archived projects
+  const [showArchived, setShowArchived] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('active');
   
   // New project form state
   const [newProjectForm, setNewProjectForm] = useState({
@@ -87,12 +81,14 @@ export function ProjectPage({
         setIsLoadingProjects(true);
         setProjectsError(null);
         
-        const projectsData = await projectService.listProjects();
+        // Load projects based on current filter
+        const includeArchived = filter === 'archived' || filter === 'all';
+        const projectsData = await projectService.listProjects(includeArchived);
         console.log(`📦 Received ${projectsData.length} projects from API`);
         
         // Log each project's pinned status
         projectsData.forEach(p => {
-          console.log(`  - ${p.title}: pinned=${p.pinned} (type: ${typeof p.pinned})`);
+          console.log(`  - ${p.title}: pinned=${p.pinned} (type: ${typeof p.pinned}), archived=${p.archived}`);
         });
         
         // Sort projects - pinned first, then alphabetically
@@ -102,20 +98,28 @@ export function ProjectPage({
           return a.title.localeCompare(b.title);
         });
         
-        setProjects(sortedProjects);
+        // Filter projects based on current filter setting
+        let filteredProjects = sortedProjects;
+        if (filter === 'active') {
+          filteredProjects = sortedProjects.filter(p => !p.archived);
+        } else if (filter === 'archived') {
+          filteredProjects = sortedProjects.filter(p => p.archived);
+        }
+        
+        setProjects(filteredProjects);
         
         // Load task counts for all projects
-        const projectIds = sortedProjects.map(p => p.id);
+        const projectIds = filteredProjects.map(p => p.id);
         loadTaskCountsForAllProjects(projectIds);
         
         // Find pinned project - this is ALWAYS the default on page load
-        const pinnedProject = sortedProjects.find(p => p.pinned === true);
+        const pinnedProject = filteredProjects.find(p => p.pinned === true);
         console.log(`📌 Pinned project:`, pinnedProject ? `${pinnedProject.title} (pinned=${pinnedProject.pinned})` : 'None found');
         
-        // Debug: Log all projects and their pinned status
-        console.log('📋 All projects with pinned status:');
-        sortedProjects.forEach(p => {
-          console.log(`   - ${p.title}: pinned=${p.pinned} (type: ${typeof p.pinned})`);
+        // Debug: Log all filtered projects and their pinned status
+        console.log('📋 All filtered projects with pinned status:');
+        filteredProjects.forEach(p => {
+          console.log(`   - ${p.title}: pinned=${p.pinned} (type: ${typeof p.pinned}), archived=${p.archived}`);
         });
         
         // On page load, ALWAYS select pinned project if it exists
@@ -128,9 +132,9 @@ export function ProjectPage({
           setTimeout(() => {
             loadTasksForProject(pinnedProject.id);
           }, 100);
-        } else if (sortedProjects.length > 0) {
+        } else if (filteredProjects.length > 0) {
           // No pinned project, select first one
-          const firstProject = sortedProjects[0];
+          const firstProject = filteredProjects[0];
           console.log(`📋 No pinned project, selecting first: ${firstProject.title}`);
           setSelectedProject(firstProject);
           setShowProjectDetails(true);
@@ -150,7 +154,7 @@ export function ProjectPage({
     };
     
     loadProjectsData();
-  }, []); // Only run once on mount
+  }, [filter]); // Run when filter changes
 
   // Set up Socket.IO for real-time project list updates (after initial load)
   useEffect(() => {
@@ -173,14 +177,22 @@ export function ProjectPage({
               return a.title.localeCompare(b.title);
             });
             
+            // Filter projects based on current filter setting
+            let filteredProjects = sortedProjects;
+            if (filter === 'active') {
+              filteredProjects = sortedProjects.filter(p => !p.archived);
+            } else if (filter === 'archived') {
+              filteredProjects = sortedProjects.filter(p => p.archived);
+            }
+            
             setProjects(prev => {
               // Keep temp projects and merge with real projects
               const tempProjects = prev.filter(p => p.id.startsWith('temp-'));
-              return [...tempProjects, ...sortedProjects];
+              return [...tempProjects, ...filteredProjects];
             });
             
             // Refresh task counts
-            const projectIds = sortedProjects.map(p => p.id);
+            const projectIds = filteredProjects.map(p => p.id);
             loadTaskCountsForAllProjects(projectIds);
           }
         };
@@ -202,7 +214,7 @@ export function ProjectPage({
       projectListSocketIO.disconnect();
       cleanup.then(cleanupFn => cleanupFn && cleanupFn());
     };
-  }, []); // Only run once on mount
+  }, [filter]); // Run when filter changes
 
   // Load task counts for all projects
   const loadTaskCountsForAllProjects = useCallback(async (projectIds: string[]) => {
@@ -313,8 +325,10 @@ export function ProjectPage({
       setIsLoadingProjects(true);
       setProjectsError(null);
       
-      const projectsData = await projectService.listProjects();
-      console.log(`[LOAD PROJECTS] Projects loaded from API:`, projectsData.map(p => ({id: p.id, title: p.title, pinned: p.pinned})));
+      // Load projects based on current filter
+      const includeArchived = filter === 'archived' || filter === 'all';
+      const projectsData = await projectService.listProjects(includeArchived);
+      console.log(`[LOAD PROJECTS] Projects loaded from API:`, projectsData.map(p => ({id: p.id, title: p.title, pinned: p.pinned, archived: p.archived})));
       
       // Sort projects - pinned first, then alphabetically by title
       const sortedProjects = [...projectsData].sort((a, b) => {
@@ -322,16 +336,25 @@ export function ProjectPage({
         if (!a.pinned && b.pinned) return 1;
         return a.title.localeCompare(b.title);
       });
-      console.log(`[LOAD PROJECTS] Projects after sorting:`, sortedProjects.map(p => ({id: p.id, title: p.title, pinned: p.pinned})));
       
-      setProjects(sortedProjects);
+      // Filter projects based on current filter setting
+      let filteredProjects = sortedProjects;
+      if (filter === 'active') {
+        filteredProjects = sortedProjects.filter(p => !p.archived);
+      } else if (filter === 'archived') {
+        filteredProjects = sortedProjects.filter(p => p.archived);
+      }
+      
+      console.log(`[LOAD PROJECTS] Projects after sorting and filtering:`, filteredProjects.map(p => ({id: p.id, title: p.title, pinned: p.pinned, archived: p.archived})));
+      
+      setProjects(filteredProjects);
       
       // Load task counts for all projects
-      const projectIds = sortedProjects.map(p => p.id);
+      const projectIds = filteredProjects.map(p => p.id);
       loadTaskCountsForAllProjects(projectIds);
       
       // Find pinned project if any
-      const pinnedProject = sortedProjects.find(project => project.pinned === true);
+      const pinnedProject = filteredProjects.find(project => project.pinned === true);
       console.log(`[LOAD PROJECTS] Pinned project:`, pinnedProject ? pinnedProject.title : 'None');
       
       // Always select pinned project if it exists
@@ -341,13 +364,13 @@ export function ProjectPage({
         setShowProjectDetails(true);
         setActiveTab('tasks');
         loadTasksForProject(pinnedProject.id);
-      } else if (!selectedProject && sortedProjects.length > 0) {
+      } else if (!selectedProject && filteredProjects.length > 0) {
         // No pinned project and no selection, select first project
-        console.log(`[LOAD PROJECTS] No pinned project, selecting first project: ${sortedProjects[0].title}`);
-        setSelectedProject(sortedProjects[0]);
+        console.log(`[LOAD PROJECTS] No pinned project, selecting first project: ${filteredProjects[0].title}`);
+        setSelectedProject(filteredProjects[0]);
         setShowProjectDetails(true);
         setActiveTab('tasks');
-        loadTasksForProject(sortedProjects[0].id);
+        loadTasksForProject(filteredProjects[0].id);
       } else {
         console.log(`[LOAD PROJECTS] Keeping current project selection`);
       }
@@ -425,6 +448,10 @@ export function ProjectPage({
       setShowDeleteConfirm(false);
       setProjectToDelete(null);
     }
+} finally {
+      setShowDeleteConfirm(false);
+      setProjectToDelete(null);
+    }
   }, [projectToDelete, setProjects, selectedProject, setSelectedProject, setShowProjectDetails, showToast, setShowDeleteConfirm, setProjectToDelete]);
 
   const handleArchiveProject = useCallback(async (e: React.MouseEvent, project: Project, projectId: string, projectTitle: string) => {
@@ -434,26 +461,32 @@ export function ProjectPage({
       const isArchived = !project.archived; // Archive if not archived, unarchive if archived
       await projectService.archiveProject(projectId, isArchived);
 
-      // Update the project in the UI
-      if (isArchived) {
-        // Remove from current projects list
-        setProjects(prev => prev.filter(p => p.id !== projectId));
+      // Refresh the project list to get updated data
+      await loadProjects();
 
-        if (selectedProject?.id === projectId) {
-          setSelectedProject(null);
-          setShowProjectDetails(false);
+      // Update the selected project if it's the one being archived/unarchived
+      if (selectedProject?.id === projectId) {
+        if (isArchived) {
+          // If we're viewing the archived tab and the project gets archived, hide details
+          if (filter === 'archived') {
+            setSelectedProject(null);
+            setShowProjectDetails(false);
+          }
+        } else {
+          // If we're viewing the active tab and the project gets unarchived, keep it selected
+          const updatedProject = projects.find(p => p.id === projectId);
+          if (updatedProject) {
+            setSelectedProject(updatedProject);
+          }
         }
-
-        showToast(`Project "${projectTitle}" archived successfully`, 'success');
-      } else {
-        // Unarchive project - will appear on next load
-        showToast(`Project "${projectTitle}" unarchived successfully`, 'success');
       }
+
+      showToast(`Project "${projectTitle}" ${isArchived ? 'archived' : 'unarchived'} successfully`, 'success');
     } catch (error) {
       console.error('Failed to archive project:', error);
       showToast('Failed to archive project. Please try again.', 'error');
     }
-  }, [projectService, setProjects, selectedProject, setSelectedProject, setShowProjectDetails, showToast]);
+  }, [projectService, setProjects, selectedProject, setSelectedProject, setShowProjectDetails, showToast, project, filter, loadProjects]);
 
   const cancelDeleteProject = useCallback(() => {
     setShowDeleteConfirm(false);
@@ -673,10 +706,37 @@ export function ProjectPage({
     >
       {/* Page Header with New Project Button */}
       <motion.div className="flex items-center justify-between mb-8" variants={itemVariants}>
-        <motion.h1 className="text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3" variants={titleVariants}>
-          <img src="/logo-neon.png" alt="Projects" className="w-7 h-7 filter drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
-          Projects
-        </motion.h1>
+        <div className="flex items-center gap-4">
+          <motion.h1 className="text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3" variants={titleVariants}>
+            <img src="/logo-neon.png" alt="Projects" className="w-7 h-7 filter drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+            {filter === 'archived' ? 'Archived Projects' : 'Projects'}
+          </motion.h1>
+          
+          {/* Project Filter Tabs */}
+          <div className="flex bg-white/50 dark:bg-gray-800/70 backdrop-blur-sm rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => setFilter('active')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                filter === 'active'
+                  ? 'bg-purple-500 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+              }`}
+            >
+              Active
+            </button>
+            <button
+              onClick={() => setFilter('archived')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                filter === 'archived'
+                  ? 'bg-purple-500 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+              }`}
+            >
+              Archived
+            </button>
+          </div>
+        </div>
+        
         <Button 
           onClick={() => setIsNewProjectModalOpen(true)} 
           variant="primary" 

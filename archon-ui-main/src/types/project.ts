@@ -33,6 +33,7 @@ export interface Project {
   progress?: number;
   updated?: string; // Human-readable format
   pinned: boolean; // Database column - indicates if project is pinned for priority
+  archived?: boolean; // Soft delete flag for archived projects
   
   // Creation progress tracking for inline display
   creationProgress?: {

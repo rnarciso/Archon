@@ -100,18 +100,19 @@ class PaperService:
         
         return results
     
-    async def search_and_tag(self, query: str, max_results: int = 20) -> Dict:
+    async def search_and_tag(self, query: str, max_results: int = 20, start: int = 0) -> Dict:
         """
         Search for papers and return results with tagging status.
         
         Args:
             query: Search query string
             max_results: Maximum number of results to return
+            start: Starting index for pagination
             
         Returns:
             Dictionary containing search results with tagging status
         """
-        search_results = await self.search_papers(query, max_results)
+        search_results = await self.search_papers(query, max_results, start)
         
         # Add tagging status to each paper
         for paper in search_results.get("papers", []):

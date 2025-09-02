@@ -76,26 +76,26 @@ class ProjectService:
             logger.error(f"Error creating project: {e}")
             return False, {"error": f"Database error: {str(e)}"}
 
-    def list_projects(self, include_content: bool = True) -> tuple[bool, dict[str, Any]]:
+    def list_projects(self, include_content: bool = True, archived: bool | None = None) -> tuple[bool, dict[str, Any]]:
         """
-        List all projects.
+        List projects with optional archived filter.
 
         Args:
             include_content: If True (default), includes docs, features, data fields.
                            If False, returns lightweight metadata only with counts.
+            archived: Filter projects by archived status. None (default) returns all projects.
+                    True returns only archived projects, False returns only active projects.
 
         Returns:
             Tuple of (success, result_dict)
         """
         try:
             if include_content:
-                # Current behavior - maintain backward compatibility
-                response = (
-                    self.supabase_client.table("archon_projects")
-                    .select("*")
-                    .order("created_at", desc=True)
-                    .execute()
-                )
+                query = self.supabase_client.table("archon_projects").select("*").order("created_at", desc=True)
+                if archived is not None:
+                    query = query.eq("archived", archived)
+                
+                response = query.execute()
 
                 projects = []
                 for project in response.data:
@@ -114,12 +114,11 @@ class ProjectService:
             else:
                 # Lightweight response for MCP - fetch all data but only return metadata + stats
                 # FIXED: N+1 query problem - now using single query
-                response = (
-                    self.supabase_client.table("archon_projects")
-                    .select("*")  # Fetch all fields in single query
-                    .order("created_at", desc=True)
-                    .execute()
-                )
+                query = self.supabase_client.table("archon_projects").select("*")  # Fetch all fields in single query
+                if archived is not None:
+                    query = query.eq("archived", archived)
+                query = query.order("created_at", desc=True)
+                response = query.execute()
 
                 projects = []
                 for project in response.data:
@@ -137,6 +136,7 @@ class ProjectService:
                         "updated_at": project["updated_at"],
                         "pinned": project.get("pinned", False),
                         "description": project.get("description", ""),
+                        "archived": project.get("archived", False),
                         "stats": {
                             "docs_count": docs_count,
                             "features_count": features_count,

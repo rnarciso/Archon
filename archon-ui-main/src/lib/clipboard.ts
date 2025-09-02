@@ -1,162 +1,141 @@
+// Enhanced clipboard utility with proper error handling and cross-platform compatibility
 
-// Synchronous version for better compatibility
-export const copyToClipboardSync = (text: string): boolean => {
+export interface ClipboardResult {
+  success: boolean;
+  error?: string;
+}
+
+// Async version - preferred for modern browsers
+export const copyToClipboard = async (text: string): Promise<ClipboardResult> => {
   try {
     // Check if clipboard API is available and in secure context
     if (navigator.clipboard && window.isSecureContext) {
-      // For sync operations, we need to use a Promise-based approach
-      // but we'll return false immediately and log any errors
-      navigator.clipboard.writeText(text).catch(err => {
-        console.error('Failed to copy text with navigator.clipboard: ', err);
-      });
-      return true; // Assume it will work since we're in a secure context
+      await navigator.clipboard.writeText(text);
+      return { success: true };
     }
-    
-    // Legacy fallback using execCommand with improved macOS compatibility
-    const textArea = document.createElement('textarea');
-    textArea.value = text;
-    textArea.style.position = 'fixed';
-    textArea.style.left = '-9999px';
-    textArea.style.top = '-9999px';
-    textArea.style.opacity = '0';
-    textArea.style.pointerEvents = 'none';
-    textArea.style.zIndex = '-1000';
-    textArea.style.whiteSpace = 'pre'; // Preserve formatting
-    
-    // Ensure the element is focused before selection
-    document.body.appendChild(textArea);
-    
-    // Force a reflow to ensure proper rendering
-    void textArea.offsetWidth;
-    
-    // Set selection range for better macOS compatibility
-    // For very long text, use a smaller selection range
-    const selectionEnd = Math.min(text.length, 9999);
-    
-    // Check if setSelectionRange exists before calling it
-    if (typeof textArea.setSelectionRange === 'function') {
-      textArea.setSelectionRange(0, selectionEnd);
-    }
-    // Focus and select
-    if (typeof textArea.focus === 'function') {
-      textArea.focus();
-    }
-    if (typeof textArea.select === 'function') {
-      textArea.select();
-    }
-    
-    try {
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-      
-      // If first attempt fails, try again (macOS compatibility)
-      if (!successful) {
-        // Small delay and retry
-        setTimeout(() => {
-          try {
-            document.execCommand('copy');
-          } catch (retryError) {
-            console.error('Retry failed to copy text with execCommand: ', retryError);
-          }
-        }, 10);
-      }
-      
-      return successful;
-    } catch (err) {
-      document.body.removeChild(textArea);
-      console.error('Failed to copy text with execCommand: ', err);
-      return false;
-    }
+
+    // Fallback to legacy method
+    return copyToClipboardLegacy(text);
   } catch (error) {
-    console.error('Failed to copy text: ', error);
-    return false;
+    console.error('Failed to copy text with navigator.clipboard:', error);
+    // Try legacy fallback if modern API fails
+    return copyToClipboardLegacy(text);
   }
 };
 
-export const copyToClipboard = async (text: string): Promise<void> => {
+// Legacy fallback with improved cross-platform support
+export const copyToClipboardLegacy = (text: string): ClipboardResult => {
   try {
-    // First try the modern clipboard API with error handling
-    if (navigator.clipboard && window.isSecureContext) {
-      try {
-        await navigator.clipboard.writeText(text);
-        return;
-      } catch (clipboardError) {
-        console.error('navigator.clipboard.writeText failed, falling back to execCommand: ', clipboardError);
-        // Continue to fallback instead of throwing immediately
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    
+    // Improved styling for better cross-platform compatibility
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    textArea.style.top = '-9999px';
+    textArea.style.width = '1px';
+    textArea.style.height = '1px';
+    textArea.style.padding = '0';
+    textArea.style.border = 'none';
+    textArea.style.outline = 'none';
+    textArea.style.boxShadow = 'none';
+    textArea.style.background = 'transparent';
+    
+    // Set attributes for better accessibility and iOS compatibility
+    textArea.setAttribute('readonly', '');
+    textArea.setAttribute('aria-hidden', 'true');
+    textArea.setAttribute('tabindex', '-1');
+    
+    document.body.appendChild(textArea);
+    
+    // Enhanced selection for iOS Safari compatibility
+    if (navigator.userAgent.match(/ipad|ipod|iphone/i)) {
+      const range = document.createRange();
+      range.selectNodeContents(textArea);
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
       }
+      textArea.setSelectionRange(0, text.length);
+    } else {
+      textArea.select();
+      textArea.setSelectionRange(0, text.length);
     }
     
-    // Fallback to legacy methods with improved macOS compatibility
-    return await new Promise<void>((resolve, reject) => {
-      try {
-        // Create a temporary textarea element
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        
-        // Position element off-screen with improved macOS styling
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-9999px';
-        textArea.style.top = '-9999px';
-        textArea.style.opacity = '0';
-        textArea.style.pointerEvents = 'none';
-        textArea.style.zIndex = '-1000';
-        textArea.style.whiteSpace = 'pre'; // Preserve formatting
-        
-        // Add to DOM
-        document.body.appendChild(textArea);
-        
-        // Force a reflow to ensure proper rendering
-        void textArea.offsetWidth;
-        
-        // Set selection range for better macOS compatibility
-        // For very long text, use a smaller selection range
-        const selectionEnd = Math.min(text.length, 9999);
-        
-        // Check if setSelectionRange exists before calling it
-        if (typeof textArea.setSelectionRange === 'function') {
-          textArea.setSelectionRange(0, selectionEnd);
-        }
-        
-        // Focus and select
-        if (typeof textArea.focus === 'function') {
-          textArea.focus();
-        }
-        if (typeof textArea.select === 'function') {
-          textArea.select();
-        }
-        
-        // Try to copy with a small delay for better macOS compatibility
-        setTimeout(() => {
-          try {
-            const successful = document.execCommand('copy');
-            document.body.removeChild(textArea);
-            
-            if (successful) {
-              resolve();
-            } else {
-              // Try again with a different approach for macOS
-              setTimeout(() => {
-                const successRetry = document.execCommand('copy');
-                document.body.removeChild(textArea);
-                
-                if (successRetry) {
-                  resolve();
-                } else {
-                  reject(new Error('execCommand returned false even after retry'));
-                }
-              }, 100);
-            }
-          } catch (execError) {
-            document.body.removeChild(textArea);
-            reject(new Error(`execCommand failed: ${execError}`));
-          }
-        }, 10); // Increased delay for better macOS compatibility
-      } catch (error) {
-        reject(new Error(`Failed to create textarea: ${error}`));
-      }
-    });
-  } catch (err) {
-    console.error('Failed to copy text: ', err);
-    throw new Error('All clipboard copy methods failed. Please copy manually.');
+    // Execute copy command
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    
+    if (successful) {
+      return { success: true };
+    } else {
+      return { 
+        success: false, 
+        error: 'Copy command failed - execCommand returned false' 
+      };
+    }
+    
+  } catch (error) {
+    return { 
+      success: false, 
+      error: `Legacy copy failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    };
   }
 };
+
+// Synchronous version with proper error handling
+export const copyToClipboardSync = (text: string): ClipboardResult => {
+  try {
+    // Check if clipboard API is available and in secure context
+    if (navigator.clipboard && window.isSecureContext) {
+      // For modern browsers, we'll use the async API but return immediately
+      // Note: This won't provide immediate feedback on success/failure
+      navigator.clipboard.writeText(text).catch(err => {
+        console.error('Failed to copy text with navigator.clipboard:', err);
+      });
+      return { success: true }; // Optimistic return
+    }
+
+    // Use legacy fallback for immediate synchronous result
+    return copyToClipboardLegacy(text);
+    
+  } catch (error) {
+    console.error('Sync copy failed:', error);
+    return copyToClipboardLegacy(text);
+  }
+};
+
+// Utility function to check if clipboard is supported
+export const isClipboardSupported = (): boolean => {
+  return !!(
+    (navigator.clipboard && window.isSecureContext) ||
+    document.queryCommandSupported?.('copy')
+  );
+};
+
+// Usage examples:
+/*
+// Async usage (recommended)
+const result = await copyToClipboard("Hello World");
+if (result.success) {
+  console.log("Text copied successfully!");
+} else {
+  console.error("Copy failed:", result.error);
+}
+
+// Sync usage
+const syncResult = copyToClipboardSync("Hello World");
+if (syncResult.success) {
+  console.log("Text copied successfully!");
+} else {
+  console.error("Copy failed:", syncResult.error);
+}
+
+// Check support
+if (isClipboardSupported()) {
+  // Proceed with copy functionality
+} else {
+  // Show alternative or disable copy feature
+}
+*/

@@ -178,16 +178,17 @@ export const projectService = {
   /**
    * Get all projects
    */
-  async listProjects(): Promise<Project[]> {
+  async listProjects(includeArchived: boolean = false): Promise<Project[]> {
     try {
-      console.log('[PROJECT SERVICE] Fetching projects from API');
-      const projects = await callAPI<Project[]>('/api/projects');
+      console.log('[PROJECT SERVICE] Fetching projects from API, includeArchived:', includeArchived);
+      const endpoint = includeArchived ? '/api/projects?include_archived=true' : '/api/projects';
+      const projects = await callAPI<Project[]>(endpoint);
       console.log('[PROJECT SERVICE] Raw API response:', projects);
       console.log('[PROJECT SERVICE] Raw API response length:', projects.length);
       
       // Debug raw pinned values
       projects.forEach((p: any) => {
-        console.log(`[PROJECT SERVICE] Raw project: ${p.title}, pinned=${p.pinned} (type: ${typeof p.pinned})`);
+        console.log(`[PROJECT SERVICE] Raw project: ${p.title}, pinned=${p.pinned} (type: ${typeof p.pinned}), archived=${p.archived}`);
       });
       
       // Add computed UI properties
@@ -199,14 +200,15 @@ export const projectService = {
           ...project,
           // Ensure pinned is properly handled as boolean
           pinned: project.pinned === true || project.pinned === 'true',
+          archived: project.archived === true || project.archived === 'true',
           progress: project.progress || 0,
           updated: project.updated || this.formatRelativeTime(project.updated_at)
         };
-        console.log(`[PROJECT SERVICE] Processed project ${project.id} (${project.title}), pinned=${processed.pinned} (type: ${typeof processed.pinned})`);
+        console.log(`[PROJECT SERVICE] Processed project ${project.id} (${project.title}), pinned=${processed.pinned}, archived=${processed.archived}`);
         return processed;
       });
       
-      console.log('[PROJECT SERVICE] All processed projects:', processedProjects.map(p => ({id: p.id, title: p.title, pinned: p.pinned})));
+      console.log('[PROJECT SERVICE] All processed projects:', processedProjects.map(p => ({id: p.id, title: p.title, pinned: p.pinned, archived: p.archived})));
       return processedProjects;
     } catch (error) {
       console.error('Failed to list projects:', error);
@@ -322,6 +324,48 @@ export const projectService = {
       this.broadcastProjectUpdate('PROJECT_UPDATED', project.id, updates);
       
       // Ensure pinned property is properly handled as boolean
+      // Handle response to ensure we have consistent structure
+      const processedProject = {
+        ...project,
+        id: project.id || projectId,
+        title: project.title || 'Unknown Project',
+        archived: isArchived,
+        pinned: project.pinned === true || false,
+        progress: project.progress || 0,
+        updated_at: project.updated_at || new Date().toISOString(),
+        created_at: project.created_at || new Date().toISOString()
+      };
+      
+      console.log(`[PROJECT SERVICE] Final processed project:`, {
+        id: processedProject.id,
+        title: processedProject.title,
+        pinned: processedProject.pinned,
+        archived: processedProject.archived
+      });
+      
+      return processedProject;
+    } catch (error) {
+      console.error(`Failed to update project ${projectId}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Archive/unarchive a project
+   */
+  async archiveProject(projectId: string, isArchived: boolean): Promise<any> {
+    try {
+      console.log(`[PROJECT SERVICE] Archiving project ${projectId}, isArchived=${isArchived}`);
+      const project = await callAPI<any>(`/api/projects/${projectId}/archive?archived=${isArchived}`, {
+        method: 'PUT'
+      });
+      
+      console.log(`[PROJECT SERVICE] Archive response for project ${projectId}:`, project);
+      
+      // Broadcast update event
+      this.broadcastProjectUpdate('PROJECT_UPDATED', projectId, { archived: isArchived });
+      
+      // Ensure pinned property is properly handled as boolean
       const processedProject = {
         ...project,
         pinned: project.pinned === true,
@@ -329,15 +373,12 @@ export const projectService = {
         updated: this.formatRelativeTime(project.updated_at)
       };
       
-      console.log(`[PROJECT SERVICE] Final processed project:`, {
-        id: processedProject.id,
-        title: processedProject.title,
-        pinned: processedProject.pinned
-      });
-      
       return processedProject;
     } catch (error) {
-      console.error(`Failed to update project ${projectId}:`, error);
+      console.error(`Failed to archive project ${projectId}:`, error);
+      if (error instanceof ProjectServiceError) {
+        console.error(`Error details: ${error.message}, code: ${error.code}, status: ${error.statusCode}`);
+      }
       throw error;
     }
   },

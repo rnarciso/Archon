@@ -3,6 +3,14 @@
 ## Overview
 This feature allows users to search for scientific papers on PubMed, tag papers they want to download, and retrieve them from Sci-Hub using their DOI codes.
 
+## Features
+- 🔍 **Search Papers**: Search scientific papers on PubMed using keywords
+- 🏷️ **Tag Papers**: Mark papers for download using their DOI codes
+- 📥 **Download Papers**: Download tagged papers from Sci-Hub automatically
+- 🔄 **Background Processing**: Download papers in the background to avoid blocking the UI
+- 📊 **Pagination**: Support for paginated results when searching papers
+- 💾 **Persistent Storage**: Paper tags are maintained during the application runtime
+
 ## API Endpoints
 
 ### Search Papers

@@ -1,1 +1,1 @@
-Papers service package.
+"""Papers service package."""
