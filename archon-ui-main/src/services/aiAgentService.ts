@@ -2,6 +2,19 @@
  * AI Agent service for interacting with AI coding tools
  */
 
+// Types for manually configured agents
+export interface ManualAgentConfig {
+  id: string;
+  name: string;
+  executableName: string;
+  type: 'claude' | 'gemini' | 'qwen' | 'custom';
+  path: string;
+  version: string;
+  description: string;
+  isConfigured: boolean;
+  lastTested: string | null;
+}
+
 // Types for AI agent responses
 export interface DetectedTool {
   name: string;
@@ -200,4 +213,61 @@ export async function getExecutionHistory(limit?: number, offset?: number): Prom
 // Get list of supported tool types
 export async function getSupportedTools(): Promise<string[]> {
   return retry(() => apiRequest<string[]>('/supported-tools'));
+}
+
+// Manual agent configuration functions
+
+// Add a manually configured agent
+export async function addManualAgent(agent: Omit<ManualAgentConfig, 'id' | 'isConfigured' | 'lastTested'>): Promise<ManualAgentConfig> {
+  return retry(() => apiRequest<ManualAgentConfig>('/manual-agents', {
+    method: 'POST',
+    body: JSON.stringify(agent),
+  }));
+}
+
+// Get all manually configured agents
+export async function getManualAgents(): Promise<ManualAgentConfig[]> {
+  return retry(() => apiRequest<ManualAgentConfig[]>('/manual-agents'));
+}
+
+// Update a manual agent configuration
+export async function updateManualAgent(id: string, agent: Partial<ManualAgentConfig>): Promise<ManualAgentConfig> {
+  return retry(() => apiRequest<ManualAgentConfig>(`/manual-agents/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(agent),
+  }));
+}
+
+// Delete a manual agent configuration
+export async function deleteManualAgent(id: string): Promise<{ message: string }> {
+  return retry(() => apiRequest<{ message: string }>(`/manual-agents/${id}`, {
+    method: 'DELETE',
+  }));
+}
+
+// Test a manual agent connection
+export async function testManualAgent(id: string): Promise<{ success: boolean; message: string; version?: string }> {
+  return retry(() => apiRequest<{ success: boolean; message: string; version?: string }>(`/manual-agents/${id}/test`, {
+    method: 'POST',
+  }));
+}
+
+// Validate manual agent configuration before adding
+export async function validateManualAgent(agent: Omit<ManualAgentConfig, 'id' | 'isConfigured' | 'lastTested'>): Promise<{
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  executableExists: boolean;
+  suggestedPath?: string;
+}> {
+  return retry(() => apiRequest<{
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+    executableExists: boolean;
+    suggestedPath?: string;
+  }>('/manual-agents/validate', {
+    method: 'POST',
+    body: JSON.stringify(agent),
+  }));
 }

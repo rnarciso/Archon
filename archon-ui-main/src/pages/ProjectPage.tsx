@@ -8,7 +8,7 @@ import { DocsTab } from '../components/project-tasks/DocsTab';
 // import { DataTab } from '../components/project-tasks/DataTab';
 import { TasksTab } from '../components/project-tasks/TasksTab';
 import { Button } from '../components/ui/Button';
-import { ChevronRight, ShoppingCart, Code, Briefcase, Layers, Plus, X, AlertCircle, Loader2, Heart, BarChart3, Trash2, Pin, ListTodo, Activity, CheckCircle2, Clipboard } from 'lucide-react';
+import { ChevronRight, ShoppingCart, Code, Briefcase, Layers, Plus, X, AlertCircle, Loader2, Heart, BarChart3, Trash2, Pin, ListTodo, Activity, CheckCircle2, Clipboard, Archive } from 'lucide-react';
 
 // Import our service layer and types
 import { projectService } from '../services/projectService';
@@ -425,7 +425,39 @@ export function ProjectPage({
       setShowDeleteConfirm(false);
       setProjectToDelete(null);
     }
+} finally {
+      setShowDeleteConfirm(false);
+      setProjectToDelete(null);
+    }
   }, [projectToDelete, setProjects, selectedProject, setSelectedProject, setShowProjectDetails, showToast, setShowDeleteConfirm, setProjectToDelete]);
+
+  const handleArchiveProject = useCallback(async (e: React.MouseEvent, project: Project, projectId: string, projectTitle: string) => {
+    e.stopPropagation();
+
+    try {
+      const isArchived = !project.archived; // Archive if not archived, unarchive if archived
+      await projectService.archiveProject(projectId, isArchived);
+
+      // Update the project in the UI
+      if (isArchived) {
+        // Remove from current projects list
+        setProjects(prev => prev.filter(p => p.id !== projectId));
+
+        if (selectedProject?.id === projectId) {
+          setSelectedProject(null);
+          setShowProjectDetails(false);
+        }
+
+        showToast(`Project "${projectTitle}" archived successfully`, 'success');
+      } else {
+        // Unarchive project - will appear on next load
+        showToast(`Project "${projectTitle}" unarchived successfully`, 'success');
+      }
+    } catch (error) {
+      console.error('Failed to archive project:', error);
+      showToast('Failed to archive project. Please try again.', 'error');
+    }
+  }, [projectService, setProjects, selectedProject, setSelectedProject, setShowProjectDetails, showToast, project]);
 
   const cancelDeleteProject = useCallback(() => {
     setShowDeleteConfirm(false);
@@ -870,6 +902,16 @@ export function ProjectPage({
                         <span>Copy ID</span>
                       </button>
                       
+                      {/* Archive button */}
+                      <button
+                        onClick={(e) => handleArchiveProject(e, project.id, project.title)}
+                        className="p-1.5 rounded-full bg-gray-100 text-gray-500 hover:bg-yellow-100 hover:text-yellow-600 dark:bg-gray-800/70 dark:text-gray-400 dark:hover:bg-yellow-900/30 dark:hover:text-yellow-400 transition-colors"
+                        title="Archive project"
+                        aria-label="Archive project"
+                      >
+                        <Archive className="w-3.5 h-3.5" />
+                      </button>
+
                       {/* Delete button */}
                       <button
                         onClick={(e) => handleDeleteProject(e, project.id, project.title)}

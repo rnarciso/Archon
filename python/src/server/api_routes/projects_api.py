@@ -470,6 +470,44 @@ async def delete_project(project_id: str):
         raise HTTPException(status_code=500, detail={"error": str(e)})
 
 
+@router.post("/projects/{project_id}/archive")
+async def archive_project(project_id: str, archived: bool = True):
+    """
+    Archive or unarchive a project.
+    
+    Args:
+        project_id: The project ID to archive/unarchive
+        archived: True to archive, False to unarchive (default: True)
+    """
+    try:
+        logfire.info(f"{'Archiving' if archived else 'Unarchiving'} project | project_id={project_id}")
+
+        # Use ProjectService to archive/unarchive the project
+        project_service = ProjectService()
+        success, result = project_service.archive_project(project_id, archived=archived)
+
+        if not success:
+            if "not found" in result.get("error", "").lower():
+                raise HTTPException(status_code=404, detail=result)
+            else:
+                raise HTTPException(status_code=500, detail=result)
+
+        # Broadcast project list update to Socket.IO clients
+        await broadcast_project_update()
+
+        logfire.info(
+            f"Project {'archived' if archived else 'unarchived'} successfully | project_id={project_id}"
+        )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logfire.error(f"Failed to {'archive' if archived else 'unarchive'} project | error={str(e)} | project_id={project_id}")
+        raise HTTPException(status_code=500, detail={"error": str(e)})
+
+
 @router.get("/projects/{project_id}/features")
 async def get_project_features(project_id: str):
     """Get features from a project's features JSONB field."""

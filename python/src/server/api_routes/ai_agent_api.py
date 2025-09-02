@@ -8,6 +8,7 @@ command execution, and status management.
 import time
 from typing import List, Dict, Any
 from datetime import datetime
+import uuid
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
@@ -66,6 +67,50 @@ class ServiceStatusResponse(BaseModel):
     execution_summary: Dict[str, Any]
     total_available_tools: int
     service_version: str = "1.0.0"
+
+
+# Manual Agent Configuration Models
+class ManualAgentConfig(BaseModel):
+    """Configuration for a manually defined AI agent"""
+    
+    id: str = Field(..., description="Unique identifier")
+    name: str = Field(..., description="Human-readable name")
+    executable_name: str = Field(..., description="Name of the executable")
+    type: str = Field(..., description="Agent type: claude, gemini, qwen, or custom")
+    path: str = Field("", description="Full path to the executable")
+    version: str = Field("Unknown", description="Agent version")
+    description: str = Field("", description="Agent description")
+    is_configured: bool = Field(False, description="Whether the agent is properly configured")
+    last_tested: datetime | None = Field(None, description="Last testing timestamp")
+
+
+class CreateManualAgentRequest(BaseModel):
+    """Request to create a manual agent configuration"""
+    
+    name: str = Field(..., description="Human-readable name")
+    executable_name: str = Field(..., description="Name of the executable")
+    type: str = Field(..., description="Agent type")
+    path: str = Field("", description="Full path to the executable")
+    version: str = Field("Unknown", description="Agent version")
+    description: str = Field("", description="Agent description")
+
+
+class TestAgentResponse(BaseModel):
+    """Response from testing an agent connection"""
+    
+    success: bool = Field(..., description="Whether the test succeeded")
+    message: str = Field(..., description="Test result message")
+    version: str | None = Field(None, description="Agent version if test succeeded")
+
+
+class AgentValidationResponse(BaseModel):
+    """Response from validating an agent configuration"""
+    
+    valid: bool = Field(..., description="Whether the configuration is valid")
+    errors: List[str] = Field(default_factory=list, description="Validation errors")
+    warnings: List[str] = Field(default_factory=list, description="Validation warnings")
+    executable_exists: bool = Field(False, description="Whether the executable exists")
+    suggested_path: str | None = Field(None, description="Suggested path if applicable")
 
 
 # Global service instances

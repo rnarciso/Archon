@@ -26,6 +26,7 @@ from .api_routes.coverage_api import router as coverage_router
 from .api_routes.internal_api import router as internal_router
 from .api_routes.knowledge_api import router as knowledge_router
 from .api_routes.mcp_api import router as mcp_router
+from .api_routes.papers_api import router as papers_router
 from .api_routes.projects_api import router as projects_router
 
 # Import Socket.IO handlers to ensure they're registered
@@ -164,6 +165,14 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             api_logger.warning("Could not cleanup background task manager", error=str(e))
 
+        # Cleanup papers service
+        try:
+            from .api_routes.papers_api import cleanup
+            await cleanup()
+            api_logger.info("Papers service cleaned up")
+        except Exception as e:
+            api_logger.warning("Could not cleanup papers service", error=str(e))
+
         api_logger.info("✅ Cleanup completed")
 
     except Exception as e:
@@ -217,6 +226,7 @@ app.include_router(internal_router)
 app.include_router(coverage_router)
 app.include_router(bug_report_router)
 app.include_router(ai_agent_router)
+app.include_router(papers_router)
 
 
 # Root endpoint

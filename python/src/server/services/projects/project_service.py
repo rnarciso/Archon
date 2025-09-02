@@ -37,14 +37,17 @@ class ProjectService:
                 return False, {"error": "Project title is required and must be a non-empty string"}
 
             # Create project data
-            project_data = {
-                "title": title.strip(),
-                "docs": [],  # Will add PRD document after creation
-                "features": [],
-                "data": [],
-                "created_at": datetime.now().isoformat(),
-                "updated_at": datetime.now().isoformat(),
-            }
+            project_data = (
+                {
+                    "title": title.strip(),
+                    "docs": [],
+                    "features": [],
+                    "data": [],
+                    "created_at": datetime.now().isoformat(),
+                    "updated_at": datetime.now().isoformat(),
+                    "Archived": False,
+                }
+            )
 
             if github_repo and isinstance(github_repo, str) and len(github_repo.strip()) > 0:
                 project_data["github_repo"] = github_repo.strip()
@@ -363,3 +366,46 @@ class ProjectService:
         except Exception as e:
             logger.error(f"Error updating project: {e}")
             return False, {"error": f"Error updating project: {str(e)}"}
+
+    def archive_project(self, project_id: str, archive: bool = True) -> tuple[bool, dict[str, Any]]:
+        """
+        Archive or unarchive a project.
+
+        Args:
+            project_id: The project ID to archive/unarchive
+            archive: True to archive, False to unarchive (default: True)
+
+        Returns:
+            Tuple of (success, result_dict)
+        """
+        try:
+            # Check if project exists
+            check_response = (
+                self.supabase_client.table("archon_projects")
+                .select("id")
+                .eq("id", project_id)
+                .execute()
+            )
+            if not check_response.data:
+                return False, {"error": f"Project with ID {project_id} not found"}
+
+            # Update the archived field
+            response = (
+                self.supabase_client.table("archon_projects")
+                .update({"archived": archive})
+                .eq("id", project_id)
+                .execute()
+            )
+
+            if response.data:
+                return True, {
+                    "project_id": project_id,
+                    "archived": archive,
+                    "message": f"Project {'archived' if archive else 'unarchived'} successfully"
+                }
+            else:
+                return False, {"error": f"Failed to update project {project_id}"}
+
+        except Exception as e:
+            logger.error(f"Error {'archiving' if archive else 'unarchiving'} project {project_id}: {e}")
+            return False, {"error": f"Database error: {str(e)}"}
