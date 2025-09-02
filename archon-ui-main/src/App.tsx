@@ -10,6 +10,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 import { ProjectPage } from './pages/ProjectPage';
+import { ArchivePage } from './pages/ArchivePage';
 import { DisconnectScreenOverlay } from './components/DisconnectScreenOverlay';
 import { ErrorBoundaryWithBugReport } from './components/bug-report/ErrorBoundaryWithBugReport';
 import { MigrationBanner } from './components/ui/MigrationBanner';
@@ -27,9 +28,15 @@ const AppRoutes = () => {
       <Route path="/mcp" element={<MCPPage />} />
       <Route path="/ai-agent" element={<AIAgentPage />} />
       {projectsEnabled ? (
-        <Route path="/projects" element={<ProjectPage />} />
+        <>
+          <Route path="/projects" element={<ProjectPage />} />
+          <Route path="/archive" element={<ArchivePage />} />
+        </>
       ) : (
-        <Route path="/projects" element={<Navigate to="/" replace />} />
+        <>
+          <Route path="/projects" element={<Navigate to="/" replace />} />
+          <Route path="/archive" element={<Navigate to="/" replace />} />
+        </>
       )}
     </Routes>
   );
