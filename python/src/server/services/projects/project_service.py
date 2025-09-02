@@ -45,7 +45,7 @@ class ProjectService:
                     "data": [],
                     "created_at": datetime.now().isoformat(),
                     "updated_at": datetime.now().isoformat(),
-                    "Archived": False,
+                    "archived": False,
                 }
             )
 

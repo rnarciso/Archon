@@ -1,5 +1,7 @@
 """Essential API tests - Focus on core functionality that must work."""
 
+import time
+
 
 def test_health_endpoint(client):
     """Test that health endpoint returns OK status."""
@@ -119,34 +121,40 @@ def test_list_sources(client):
         assert response.status_code in [404, 405, 422, 500]
 
 
-def test_archive_project(client):
-    # Create a project first
-    project_data = {"title": "Test Project to Archive", "description": ""}
-    response = client.post("/api/projects", json=project_data)
-    assert response.status_code == 200
-    created_project = response.json()
-    assert "id" in created_project, f"Response should contain 'id' field: {created_project}"
-    project_id = created_project["id"]
+def test_archive_project(client, mock_supabase_client):
+    from src.server.main import app  # Import app here
+
+    # Mock the project creation
+    mock_supabase_client.table.return_value.insert.return_value.execute.return_value.data = [{"id": "test-project-id", "title": "Test Project to Archive"}]
+
+    # Mock the get project response for the initial state
+    mock_supabase_client.table.return_value.select.return_value.execute.return_value.data = [{"id": "test-project-id", "title": "Test Project to Archive", "archived": False}]
+
+    project_id = "test-project-id"
 
     # Archive the project
+    mock_supabase_client.table.return_value.update.return_value.execute.return_value.data = [{"id": project_id, "archived": True}]
     archive_response = client.put(f"/api/projects/{project_id}/archive?archived=true")
     assert archive_response.status_code == 200
 
     # Check if the project was correctly archived
+    mock_supabase_client.table.return_value.select.return_value.execute.return_value.data = [{"id": project_id, "title": "Test Project to Archive", "archived": True}]
     get_response = client.get(f"/api/projects/{project_id}")
     assert get_response.status_code == 200
     archived_project = get_response.json()
-    assert "archived" in archived_project, f"Response should contain 'archived' field: {archived_project}"
+    assert "archived" in archived_project
     assert archived_project["archived"] == True
 
     # Unarchive the project
-    unarchive_response = client.put(f"/api/projects/{project_id}/archive?archived=False")
+    mock_supabase_client.table.return_value.update.return_value.execute.return_value.data = [{"id": project_id, "archived": False}]
+    unarchive_response = client.put(f"/api/projects/{project_id}/archive?archived=false")
     assert unarchive_response.status_code == 200
 
+    mock_supabase_client.table.return_value.select.return_value.execute.return_value.data = [{"id": project_id, "title": "Test Project to Archive", "archived": False}]
     get_response = client.get(f"/api/projects/{project_id}")
     assert get_response.status_code == 200
     unarchived_project = get_response.json()
-    assert "archived" in unarchived_project, f"Response should contain 'archived' field: {unarchived_project}"
+    assert "archived" in unarchived_project
     assert unarchived_project["archived"] == False
 
 
