@@ -367,13 +367,13 @@ class ProjectService:
             logger.error(f"Error updating project: {e}")
             return False, {"error": f"Error updating project: {str(e)}"}
 
-    def archive_project(self, project_id: str, archive: bool = True) -> tuple[bool, dict[str, Any]]:
+    def archive_project(self, project_id: str, archived: bool = True) -> tuple[bool, dict[str, Any]]:
         """
         Archive or unarchive a project.
 
         Args:
             project_id: The project ID to archive/unarchive
-            archive: True to archive, False to unarchive (default: True)
+            archived: True to archive, False to unarchive (default: True)
 
         Returns:
             Tuple of (success, result_dict)
@@ -392,7 +392,7 @@ class ProjectService:
             # Update the archived field
             response = (
                 self.supabase_client.table("archon_projects")
-                .update({"archived": archive})
+                .update({"archived": archived})
                 .eq("id", project_id)
                 .execute()
             )
@@ -400,14 +400,14 @@ class ProjectService:
             if response.data:
                 return True, {
                     "project_id": project_id,
-                    "archived": archive,
-                    "message": f"Project {'archived' if archive else 'unarchived'} successfully"
+                    "archived": archived,
+                    "message": f"Project {'archived' if archived else 'unarchived'} successfully"
                 }
             else:
                 return False, {"error": f"Failed to update project {project_id}"}
 
         except Exception as e:
-            logger.error(f"Error {'archiving' if archive else 'unarchiving'} project {project_id}: {e}")
+            logger.error(f"Error {'archiving' if archived else 'unarchiving'} project {project_id}: {e}")
             return False, {"error": f"Database error: {str(e)}"}
 
     def get_archived_projects(self) -> tuple[bool, dict[str, Any]]:
