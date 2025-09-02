@@ -486,7 +486,7 @@ async def archive_project(project_id: str, archived: bool = True):
 
         # Use ProjectService to archive/unarchive the project
         project_service = ProjectService()
-        success, result = await project_service.archive_project(project_id, archived=archived)
+        success, result = project_service.archive_project(project_id, archived=archived)
 
         if not success:
             if "not found" in result.get("error", "").lower():
@@ -507,6 +507,29 @@ async def archive_project(project_id: str, archived: bool = True):
         raise
     except Exception as e:
         logfire.error(f"Failed to {'archive' if archived else 'unarchive'} project | error={str(e)} | project_id={project_id}")
+        raise HTTPException(status_code=500, detail={"error": str(e)})
+
+
+@router.get("/projects/archived")
+async def get_archived_projects():
+    """Get all archived projects."""
+    try:
+        logfire.info("Getting archived projects")
+
+        project_service = ProjectService()
+        success, result = project_service.get_archived_projects()
+
+        if not success:
+            raise HTTPException(status_code=500, detail=result)
+
+        logfire.info(f"Archived projects retrieved successfully | count={len(result['projects'])}")
+
+        return result["projects"]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logfire.error(f"Failed to get archived projects | error={str(e)}")
         raise HTTPException(status_code=500, detail={"error": str(e)})
 
 

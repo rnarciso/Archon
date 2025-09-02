@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, HardDrive, Settings, Bot } from 'lucide-react';
+import { BookOpen, HardDrive, Settings, Bot, Archive } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 /**
  * Interface for navigation items
@@ -64,6 +64,10 @@ export const SideNavigation: React.FC<SideNavigationProps> = ({
     path: '/ai-agent',
     icon: <Bot className="h-5 w-5" />,
     label: 'AI Agent'
+  }, {
+    path: '/archive',
+    icon: <Archive className="h-5 w-5" />,
+    label: 'Archived Projects'
   }, {
     path: '/settings',
     icon: <Settings className="h-5 w-5" />,

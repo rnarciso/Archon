@@ -217,6 +217,21 @@ export const projectService = {
   },
 
   /**
+   * Get all archived projects
+   */
+  async listArchivedProjects(): Promise<Project[]> {
+    try {
+      console.log('[PROJECT SERVICE] Fetching archived projects from API');
+      const projects = await callAPI<Project[]>('/api/projects/archived');
+      console.log('[PROJECT SERVICE] Raw API response:', projects);
+      return projects;
+    } catch (error) {
+      console.error('Failed to list archived projects:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Get a specific project by ID
    */
   async getProject(projectId: string): Promise<Project> {
@@ -329,7 +344,7 @@ export const projectService = {
         ...project,
         id: project.id || projectId,
         title: project.title || 'Unknown Project',
-        archived: isArchived,
+        archived: project.archived || false,
         pinned: project.pinned === true || false,
         progress: project.progress || 0,
         updated_at: project.updated_at || new Date().toISOString(),
