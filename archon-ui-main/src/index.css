@@ -178,6 +178,9 @@
     transform-style: preserve-3d;
     -webkit-transform-style: preserve-3d;
   }
+  .shadow-glow-bottom-purple {
+    @apply shadow-[0_8px_20px_-10px_rgba(168,85,247,0.5)] dark:shadow-[0_8px_20px_-10px_rgba(168,85,247,0.7)];
+  }
 }
 /* Animation delays */
 .animation-delay-150 {
