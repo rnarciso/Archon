@@ -83,21 +83,26 @@ class ProjectService:
         Args:
             include_content: If True (default), includes docs, features, data fields.
                            If False, returns lightweight metadata only with counts.
-            archived: Filter projects by archived status. None (default) returns all projects.
-                    True returns only archived projects, False returns only active projects.
+            archived: Filter projects by archived status.
+                      - True: returns only archived projects.
+                      - False: returns only active (not archived) projects.
+                      - None (default): returns only active projects.
 
         Returns:
             Tuple of (success, result_dict)
         """
         try:
-            if include_content:
-                query = self.supabase_client.table("archon_projects").select("*").order("created_at", desc=True)
-                if archived is not None:
-                    query = query.eq("archived", archived)
-                
-                response = query.execute()
+            query = self.supabase_client.table("archon_projects").select("*").order("created_at", desc=True)
 
-                projects = []
+            if archived is True:
+                query = query.eq("archived", True)
+            else:  # Handles archived is False or None
+                query = query.or_("archived.is.null,archived.eq.false")
+
+            response = query.execute()
+
+            projects = []
+            if include_content:
                 for project in response.data:
                     projects.append({
                         "id": project["id"],
@@ -110,24 +115,13 @@ class ProjectService:
                         "docs": project.get("docs", []),
                         "features": project.get("features", []),
                         "data": project.get("data", []),
+                        "archived": project.get("archived", False),
                     })
             else:
-                # Lightweight response for MCP - fetch all data but only return metadata + stats
-                # FIXED: N+1 query problem - now using single query
-                query = self.supabase_client.table("archon_projects").select("*")  # Fetch all fields in single query
-                if archived is not None:
-                    query = query.eq("archived", archived)
-                query = query.order("created_at", desc=True)
-                response = query.execute()
-
-                projects = []
                 for project in response.data:
-                    # Calculate counts from fetched data (no additional queries)
                     docs_count = len(project.get("docs", []))
                     features_count = len(project.get("features", []))
                     has_data = bool(project.get("data", []))
-                    
-                    # Return only metadata + stats, excluding large JSONB fields
                     projects.append({
                         "id": project["id"],
                         "title": project["title"],
@@ -140,8 +134,8 @@ class ProjectService:
                         "stats": {
                             "docs_count": docs_count,
                             "features_count": features_count,
-                            "has_data": has_data
-                        }
+                            "has_data": has_data,
+                        },
                     })
 
             return True, {"projects": projects, "total_count": len(projects)}
