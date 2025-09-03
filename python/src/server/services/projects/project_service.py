@@ -410,27 +410,3 @@ class ProjectService:
             logger.error(f"Error {'archiving' if archived else 'unarchiving'} project {project_id}: {e}")
             return False, {"error": f"Database error: {str(e)}"}
 
-    def get_archived_projects(self) -> tuple[bool, dict[str, Any]]:
-        """
-        Get all archived projects.
-
-        Returns:
-            Tuple of (success, result_dict)
-        """
-        try:
-            response = (
-                self.supabase_client.table("archon_projects")
-                .select("*")
-                .eq("archived", True)
-                .order("created_at", desc=True)
-                .execute()
-            )
-
-            if response.data:
-                return True, {"projects": response.data}
-            else:
-                return True, {"projects": []}
-
-        except Exception as e:
-            logger.error(f"Error getting archived projects: {e}")
-            return False, {"error": f"Error getting archived projects: {str(e)}"}
