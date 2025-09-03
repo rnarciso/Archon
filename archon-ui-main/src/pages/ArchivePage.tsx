@@ -100,22 +100,34 @@ export function ArchivePage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="p-4 border rounded-lg shadow-sm flex justify-between items-center"
+                className="group relative p-4 rounded-lg bg-white dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-shadow"
               >
-                <div>
-                  <h2 className="font-bold">{project.title}</h2>
-                  <p className="text-sm text-gray-500">{project.description}</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button onClick={() => handleUnarchive(project)} variant="outline">
-                    <Archive className="mr-2 h-4 w-4" /> Unarchive
-                  </Button>
-                  <Button
-                    onClick={(e) => handleDelete(e, project.id, project.title)}
-                    variant="destructive"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" /> Delete
-                  </Button>
+                <div className="flex justify-between items-center">
+                  <div className="flex-grow">
+                    <h2 className="font-bold text-gray-800 dark:text-gray-200">{project.title}</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{project.description}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                      Archived on: {new Date(project.updated_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2 ml-4">
+                    <Button
+                      onClick={() => handleUnarchive(project)}
+                      variant="outline"
+                      className="group-hover:bg-green-50 dark:group-hover:bg-green-900/20 group-hover:border-green-400 dark:group-hover:border-green-600 transition-colors"
+                    >
+                      <Archive className="mr-2 h-4 w-4 text-green-500" />
+                      <span className="text-green-700 dark:text-green-300">Unarchive</span>
+                    </Button>
+                    <Button
+                      onClick={(e) => handleDelete(e, project.id, project.title)}
+                      variant="destructive"
+                      className="group-hover:bg-red-500 dark:group-hover:bg-red-600 group-hover:text-white"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      <span>Delete</span>
+                    </Button>
+                  </div>
                 </div>
               </motion.div>
             ))
