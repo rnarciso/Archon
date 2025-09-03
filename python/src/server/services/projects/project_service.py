@@ -45,7 +45,7 @@ class ProjectService:
                     "data": [],
                     "created_at": datetime.now().isoformat(),
                     "updated_at": datetime.now().isoformat(),
-                    "Archived": False,
+                    "archived": False,
                 }
             )
 
@@ -83,21 +83,26 @@ class ProjectService:
         Args:
             include_content: If True (default), includes docs, features, data fields.
                            If False, returns lightweight metadata only with counts.
-            archived: Filter projects by archived status. None (default) returns all projects.
-                    True returns only archived projects, False returns only active projects.
+            archived: Filter projects by archived status.
+                      - True: returns only archived projects.
+                      - False: returns only active (not archived) projects.
+                      - None (default): returns only active projects.
 
         Returns:
             Tuple of (success, result_dict)
         """
         try:
-            if include_content:
-                query = self.supabase_client.table("archon_projects").select("*").order("created_at", desc=True)
-                if archived is not None:
-                    query = query.eq("archived", archived)
-                
-                response = query.execute()
+            query = self.supabase_client.table("archon_projects").select("*").order("created_at", desc=True)
 
-                projects = []
+            if archived is True:
+                query = query.eq("archived", True)
+            else:  # Handles archived is False or None
+                query = query.or_("archived.is.null,archived.eq.false")
+
+            response = query.execute()
+
+            projects = []
+            if include_content:
                 for project in response.data:
                     projects.append({
                         "id": project["id"],
@@ -110,24 +115,13 @@ class ProjectService:
                         "docs": project.get("docs", []),
                         "features": project.get("features", []),
                         "data": project.get("data", []),
+                        "archived": project.get("archived", False),
                     })
             else:
-                # Lightweight response for MCP - fetch all data but only return metadata + stats
-                # FIXED: N+1 query problem - now using single query
-                query = self.supabase_client.table("archon_projects").select("*")  # Fetch all fields in single query
-                if archived is not None:
-                    query = query.eq("archived", archived)
-                query = query.order("created_at", desc=True)
-                response = query.execute()
-
-                projects = []
                 for project in response.data:
-                    # Calculate counts from fetched data (no additional queries)
                     docs_count = len(project.get("docs", []))
                     features_count = len(project.get("features", []))
                     has_data = bool(project.get("data", []))
-                    
-                    # Return only metadata + stats, excluding large JSONB fields
                     projects.append({
                         "id": project["id"],
                         "title": project["title"],
@@ -140,8 +134,8 @@ class ProjectService:
                         "stats": {
                             "docs_count": docs_count,
                             "features_count": features_count,
-                            "has_data": has_data
-                        }
+                            "has_data": has_data,
+                        },
                     })
 
             return True, {"projects": projects, "total_count": len(projects)}
@@ -367,13 +361,13 @@ class ProjectService:
             logger.error(f"Error updating project: {e}")
             return False, {"error": f"Error updating project: {str(e)}"}
 
-    def archive_project(self, project_id: str, archive: bool = True) -> tuple[bool, dict[str, Any]]:
+    def archive_project(self, project_id: str, archived: bool = True) -> tuple[bool, dict[str, Any]]:
         """
         Archive or unarchive a project.
 
         Args:
             project_id: The project ID to archive/unarchive
-            archive: True to archive, False to unarchive (default: True)
+            archived: True to archive, False to unarchive (default: True)
 
         Returns:
             Tuple of (success, result_dict)
@@ -392,7 +386,7 @@ class ProjectService:
             # Update the archived field
             response = (
                 self.supabase_client.table("archon_projects")
-                .update({"archived": archive})
+                .update({"archived": archived})
                 .eq("id", project_id)
                 .execute()
             )
@@ -400,37 +394,13 @@ class ProjectService:
             if response.data:
                 return True, {
                     "project_id": project_id,
-                    "archived": archive,
-                    "message": f"Project {'archived' if archive else 'unarchived'} successfully"
+                    "archived": archived,
+                    "message": f"Project {'archived' if archived else 'unarchived'} successfully"
                 }
             else:
                 return False, {"error": f"Failed to update project {project_id}"}
 
         except Exception as e:
-            logger.error(f"Error {'archiving' if archive else 'unarchiving'} project {project_id}: {e}")
+            logger.error(f"Error {'archiving' if archived else 'unarchiving'} project {project_id}: {e}")
             return False, {"error": f"Database error: {str(e)}"}
 
-    def get_archived_projects(self) -> tuple[bool, dict[str, Any]]:
-        """
-        Get all archived projects.
-
-        Returns:
-            Tuple of (success, result_dict)
-        """
-        try:
-            response = (
-                self.supabase_client.table("archon_projects")
-                .select("*")
-                .eq("archived", True)
-                .order("created_at", desc=True)
-                .execute()
-            )
-
-            if response.data:
-                return True, {"projects": response.data}
-            else:
-                return True, {"projects": []}
-
-        except Exception as e:
-            logger.error(f"Error getting archived projects: {e}")
-            return False, {"error": f"Error getting archived projects: {str(e)}"}

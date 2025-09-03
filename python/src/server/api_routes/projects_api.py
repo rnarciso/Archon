@@ -281,6 +281,32 @@ async def projects_health():
         }
 
 
+@router.get("/projects/archived")
+async def get_archived_projects():
+    """Get all archived projects."""
+    try:
+        logfire.info("Getting archived projects")
+
+        project_service = ProjectService()
+        success, result = project_service.list_projects(include_content=True, archived=True)
+
+        if not success:
+            raise HTTPException(status_code=500, detail=result)
+
+        # The list_projects method returns a dict with a 'projects' key
+        projects = result.get("projects", [])
+
+        logfire.info(f"Archived projects retrieved successfully | count={len(projects)}")
+
+        return projects
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logfire.error(f"Failed to get archived projects | error={str(e)}")
+        raise HTTPException(status_code=500, detail={"error": str(e)})
+
+
 @router.get("/projects/{project_id}")
 async def get_project(project_id: str):
     """Get a specific project."""
@@ -319,6 +345,8 @@ async def get_project(project_id: str):
     except Exception as e:
         logfire.error(f"Failed to get project | error={str(e)} | project_id={project_id}")
         raise HTTPException(status_code=500, detail={"error": str(e)})
+
+
 
 
 @router.put("/projects/{project_id}")
@@ -517,14 +545,17 @@ async def get_archived_projects():
         logfire.info("Getting archived projects")
 
         project_service = ProjectService()
-        success, result = project_service.get_archived_projects()
+        success, result = project_service.list_projects(include_content=True, archived=True)
 
         if not success:
             raise HTTPException(status_code=500, detail=result)
 
-        logfire.info(f"Archived projects retrieved successfully | count={len(result['projects'])}")
+        # The list_projects method returns a dict with a 'projects' key
+        projects = result.get("projects", [])
 
-        return result["projects"]
+        logfire.info(f"Archived projects retrieved successfully | count={len(projects)}")
+
+        return projects
 
     except HTTPException:
         raise
