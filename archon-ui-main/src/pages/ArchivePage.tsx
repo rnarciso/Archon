@@ -100,7 +100,7 @@ export function ArchivePage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="group relative p-4 rounded-lg bg-white dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-shadow shadow-glow-bottom-purple"
+                className="group relative p-4 rounded-lg bg-white dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700 transition-shadow shadow-glow-bottom-purple"
               >
                 <div className="flex justify-between items-center">
                   <div className="flex-grow">
