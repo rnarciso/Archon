@@ -308,14 +308,23 @@ async def get_archived_projects():
         raise HTTPException(status_code=500, detail={"error": str(e)})
 
 
+from fastapi import APIRouter, Depends, HTTPException
+
+# ... (other imports)
+
+def get_project_service():
+    """Dependency provider for ProjectService."""
+    return ProjectService()
+
+# ... (other code)
+
 @router.get("/projects/{project_id}")
-async def get_project(project_id: str):
+async def get_project(project_id: str, project_service: ProjectService = Depends(get_project_service)):
     """Get a specific project."""
     try:
         logfire.info(f"Getting project | project_id={project_id}")
 
         # Use ProjectService to get the project
-        project_service = ProjectService()
         success, result = project_service.get_project(project_id)
 
         if not success:
@@ -502,7 +511,7 @@ async def delete_project(project_id: str):
 
 
 @router.put("/projects/{project_id}/archive")
-async def archive_project(project_id: str, archived: bool = True):
+async def archive_project(project_id: str, archived: bool = True, project_service: ProjectService = Depends(get_project_service)):
     """
     Archive or unarchive a project.
     
@@ -514,7 +523,6 @@ async def archive_project(project_id: str, archived: bool = True):
         logfire.info(f"{'Archiving' if archived else 'Unarchiving'} project | project_id={project_id}")
 
         # Use ProjectService to archive/unarchive the project
-        project_service = ProjectService()
         success, result = project_service.archive_project(project_id, archived=archived)
 
         if not success:

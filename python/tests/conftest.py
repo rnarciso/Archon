@@ -74,26 +74,26 @@ def mock_supabase_client():
     return mock_client
 
 
-@pytest.fixture
-def client(mock_supabase_client):
-    """FastAPI test client with mocked database."""
-    # Patch all the ways Supabase client can be created
-    with patch(
-        "src.server.services.client_manager.create_client", return_value=mock_supabase_client
-    ):
-        with patch(
-            "src.server.services.credential_service.create_client",
-            return_value=mock_supabase_client,
-        ):
-            with patch(
-                "src.server.services.client_manager.get_supabase_client",
-                return_value=mock_supabase_client,
-            ):
-                with patch("supabase.create_client", return_value=mock_supabase_client):
-                    # Import app after patching to ensure mocks are used
-                    from src.server.main import app
+from src.server.api_routes.projects_api import get_project_service
+from src.server.services.projects import ProjectService
 
-                    return TestClient(app)
+@pytest.fixture
+def mock_project_service(mock_supabase_client):
+    """Fixture for a mock ProjectService."""
+    return ProjectService(supabase_client=mock_supabase_client)
+
+@pytest.fixture
+def client(mock_supabase_client, mock_project_service):
+    """FastAPI test client with mocked database and services."""
+    with patch("src.server.services.credential_service.create_client", return_value=mock_supabase_client):
+        from src.server.main import app
+
+        app.dependency_overrides[get_project_service] = lambda: mock_project_service
+
+        with TestClient(app) as test_client:
+            yield test_client
+
+        app.dependency_overrides = {}
 
 
 @pytest.fixture

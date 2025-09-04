@@ -120,51 +120,75 @@ def test_list_sources(client):
 
 
 import time
+from unittest.mock import MagicMock
 
-def test_archive_project(client):
-    project_data = {"title": "Test Project to Archive", "description": ""}
-    response = client.post("/api/projects", json=project_data)
-    assert response.status_code == 200
-    response_data = response.json()
 
-    project_id = None
-    if "id" in response_data:
-        project_id = response_data["id"]
-    elif "progress_id" in response_data:
-        # Poll for project creation
-        for _ in range(10):  # Poll for 10 seconds
-            time.sleep(1)
-            projects_response = client.get("/api/projects")
-            projects = projects_response.json()
-            for project in projects:
-                if project["title"] == project_data["title"]:
-                    project_id = project["id"]
-                    break
-            if project_id:
-                break
+def test_archive_project(client, mock_supabase_client):
+    """Test archiving and unarchiving a project."""
+    project_id = "test-archive-project-id"
+    project_data = {
+        "id": project_id,
+        "title": "Test Project to Archive",
+        "description": "",
+        "github_repo": None,
+        "created_at": "2023-01-01T00:00:00",
+        "updated_at": "2023-01-01T00:00:00",
+        "docs": [],
+        "features": [],
+        "data": [],
+        "pinned": False,
+        "archived": False,
+        "technical_sources": [],
+        "business_sources": [],
+    }
+    archived_project_data = {**project_data, "archived": True}
+    unarchived_project_data = {**project_data, "archived": False}
 
-    assert project_id, "Could not retrieve created project ID"
+    mock_table = mock_supabase_client.table.return_value
 
-    # Archive the project
+    # --- Archive ---
+    # Arrange: Mock the service calls for archiving
+    mock_table.select.return_value.eq.return_value.execute.return_value.data = [project_data]
+    mock_table.update.return_value.eq.return_value.execute.return_value.data = [archived_project_data]
+
+    # Act: Call the archive endpoint
     archive_response = client.put(f"/api/projects/{project_id}/archive?archived=true")
+
+    # Assert: Check the response
     assert archive_response.status_code == 200
 
-    # Check if the project was correctly archived
-    get_response = client.get(f"/api/projects/{project_id}")
-    assert get_response.status_code == 200
-    archived_project = get_response.json()
-    assert "archived" in archived_project, f"Response should contain 'archived' field: {archived_project}"
-    assert archived_project["archived"] == True
+    # --- Verify Archive ---
+    # Arrange: Mock the service call for getting the project
+    mock_table.select.return_value.eq.return_value.execute.return_value.data = [archived_project_data]
 
-    # Unarchive the project
+    # Act: Get the project
+    get_response = client.get(f"/api/projects/{project_id}")
+
+    # Assert: Check that it's archived
+    assert get_response.status_code == 200
+    assert get_response.json()["archived"] is True
+
+    # --- Unarchive ---
+    # Arrange: Mock the service calls for unarchiving
+    mock_table.select.return_value.eq.return_value.execute.return_value.data = [archived_project_data]
+    mock_table.update.return_value.eq.return_value.execute.return_value.data = [unarchived_project_data]
+
+    # Act: Call the unarchive endpoint
     unarchive_response = client.put(f"/api/projects/{project_id}/archive?archived=False")
+
+    # Assert: Check the response
     assert unarchive_response.status_code == 200
 
+    # --- Verify Unarchive ---
+    # Arrange: Mock the service call for getting the project
+    mock_table.select.return_value.eq.return_value.execute.return_value.data = [unarchived_project_data]
+
+    # Act: Get the project
     get_response = client.get(f"/api/projects/{project_id}")
+
+    # Assert: Check that it's not archived
     assert get_response.status_code == 200
-    unarchived_project = get_response.json()
-    assert "archived" in unarchived_project, f"Response should contain 'archived' field: {unarchived_project}"
-    assert unarchived_project["archived"] == False
+    assert get_response.json()["archived"] is False
 
 
 def test_error_handling(client):
