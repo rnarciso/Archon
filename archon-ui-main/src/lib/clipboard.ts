@@ -6,18 +6,35 @@ export interface ClipboardResult {
 }
 
 // Async version - preferred for modern browsers
-export const copyToClipboard = async (text: string): Promise<ClipboardResult> => {
+export const copyToClipboard = async (text: string): Promise<void> => {
   try {
-    if (!navigator.clipboard || !window.isSecureContext) {
-      return { success: false, error: 'Clipboard API not available or not in a secure context.' };
+    // Try using modern clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return;
     }
-    await navigator.clipboard.writeText(text);
-    return { success: true };
+    
+    // Fallback to execCommand method
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+
+    // Hide the textarea from the user
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    textArea.style.top = '-9999px';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    
+    if (!successful) {
+      throw new Error('All clipboard copy methods failed. Please copy manually.');
+    }
   } catch (error) {
-    return { 
-      success: false, 
-      error: `Failed to copy text: ${error instanceof Error ? error.message : 'Unknown error'}` 
-    };
+    throw new Error(`All clipboard copy methods failed. Please copy manually.`);
   }
 };
 

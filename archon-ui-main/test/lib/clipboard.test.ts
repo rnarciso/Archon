@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { copyToClipboard } from '../../src/lib/clipboard';
+import { copyToClipboard, ClipboardResult } from '../../src/lib/clipboard';
 
 describe('clipboard utilities', () => {
   beforeEach(() => {
@@ -44,36 +44,14 @@ describe('clipboard utilities', () => {
         configurable: true
       });
 
-      // Mock document.execCommand
-      const mockExecCommand = vi.fn().mockImplementation(() => {
-        const mockTextArea: any = document.createElement('textarea');
-        mockTextArea.value = 'test text';
-        mockTextArea.style.position = 'fixed';
-        mockTextArea.style.left = '-9999px';
-        mockTextArea.style.top = '-9999px';
-        mockTextArea.style.opacity = '0';
-        document.body.appendChild(mockTextArea);
-        mockTextArea.focus();
-        mockTextArea.select();
-        const successful = document.execCommand('copy');
-        document.body.removeChild(mockTextArea);
-        return successful;
-      });
-
-      Object.defineProperty(document, 'execCommand', {
-        value: mockExecCommand,
-        configurable: true
-      });
-
-
       // Mock document.createElement
       const mockTextArea = {
         value: '',
         style: {
-          position: '',
-          left: '',
-          top: '',
-          opacity: '',
+          position: 'fixed',
+          left: '-9999px',
+          top: '-9999px',
+          opacity: '0',
           pointerEvents: '',
           zIndex: '',
           whiteSpace: ''
@@ -86,6 +64,19 @@ describe('clipboard utilities', () => {
       const mockCreateElement = vi.spyOn(document, 'createElement').mockReturnValue(mockTextArea as any);
       const mockAppendChild = vi.spyOn(document.body, 'appendChild').mockImplementation(() => {});
       const mockRemoveChild = vi.spyOn(document.body, 'removeChild').mockImplementation(() => {});
+
+      // Mock document.execCommand
+      const mockExecCommand = vi.fn().mockReturnValue(true);
+      Object.defineProperty(document, 'execCommand', {
+        value: mockExecCommand,
+        configurable: true
+      });
+
+      // Mock window.isSecureContext to false to trigger fallback
+      Object.defineProperty(window, 'isSecureContext', {
+        value: false,
+        configurable: true
+      });
 
       await copyToClipboard('test text');
       
@@ -109,21 +100,14 @@ describe('clipboard utilities', () => {
         configurable: true
       });
 
-      // Mock document.execCommand to fail
-      const mockExecCommand = vi.fn().mockReturnValue(false);
-      Object.defineProperty(document, 'execCommand', {
-        value: mockExecCommand,
-        configurable: true
-      });
-
       // Mock document.createElement
       const mockTextArea = {
         value: '',
         style: {
-          position: '',
-          left: '',
-          top: '',
-          opacity: '',
+          position: 'fixed',
+          left: '-9999px',
+          top: '-9999px',
+          opacity: '0',
           pointerEvents: '',
           zIndex: '',
           whiteSpace: ''
@@ -136,6 +120,19 @@ describe('clipboard utilities', () => {
       const mockCreateElement = vi.spyOn(document, 'createElement').mockReturnValue(mockTextArea as any);
       const mockAppendChild = vi.spyOn(document.body, 'appendChild').mockImplementation(() => {});
       const mockRemoveChild = vi.spyOn(document.body, 'removeChild').mockImplementation(() => {});
+
+      // Mock document.execCommand to fail
+      const mockExecCommand = vi.fn().mockReturnValue(false);
+      Object.defineProperty(document, 'execCommand', {
+        value: mockExecCommand,
+        configurable: true
+      });
+
+      // Mock window.isSecureContext to false to trigger fallback
+      Object.defineProperty(window, 'isSecureContext', {
+        value: false,
+        configurable: true
+      });
 
       await expect(copyToClipboard('test text')).rejects.toThrow('All clipboard copy methods failed. Please copy manually.');
       

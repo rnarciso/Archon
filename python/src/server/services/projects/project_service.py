@@ -10,7 +10,7 @@ separating business logic from transport-specific code.
 from datetime import datetime
 from typing import Any
 
-from src.server.utils import get_supabase_client
+from src.server.services.client_manager import get_supabase_client
 
 from ...config.logfire_config import get_logger
 
@@ -22,7 +22,9 @@ class ProjectService:
 
     def __init__(self, supabase_client=None):
         """Initialize with optional supabase client"""
+        print(f"ProjectService __init__: supabase_client={supabase_client}")
         self.supabase_client = supabase_client or get_supabase_client()
+        print(f"ProjectService __init__: self.supabase_client={self.supabase_client}")
 
     def create_project(self, title: str, github_repo: str = None) -> tuple[bool, dict[str, Any]]:
         """

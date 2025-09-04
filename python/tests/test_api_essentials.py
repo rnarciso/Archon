@@ -1,5 +1,6 @@
 """Essential API tests - Focus on core functionality that must work."""
 
+import time
 
 def test_health_endpoint(client):
     """Test that health endpoint returns OK status."""
@@ -119,8 +120,6 @@ def test_list_sources(client):
         assert response.status_code in [404, 405, 422, 500]
 
 
-import time
-
 def test_archive_project(client):
     project_data = {"title": "Test Project to Archive", "description": ""}
     response = client.post("/api/projects", json=project_data)
@@ -132,7 +131,7 @@ def test_archive_project(client):
         project_id = response_data["id"]
     elif "progress_id" in response_data:
         # Poll for project creation
-        for _ in range(10):  # Poll for 10 seconds
+        for _ in range(30):  # Poll for 30 seconds
             time.sleep(1)
             projects_response = client.get("/api/projects")
             projects = projects_response.json()

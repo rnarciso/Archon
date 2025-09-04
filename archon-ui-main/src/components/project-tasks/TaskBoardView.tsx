@@ -49,7 +49,8 @@ const ColumnDropZone = ({
   hoveredTaskId,
   onTaskHover,
   selectedTasks,
-  onTaskSelect
+  onTaskSelect,
+  onDeployAgent
 }: ColumnDropZoneProps) => {
   const ref = useRef<HTMLDivElement>(null);
   
