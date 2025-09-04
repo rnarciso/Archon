@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
-import { Check, Trash2, Edit, Tag, User, Bot, Clipboard, Save, Plus } from 'lucide-react';
+import { Check, Trash2, Edit, Tag, User, Bot, Clipboard, Save, Plus, Play, Loader2, Eye } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { DeleteConfirmModal } from '../../pages/ProjectPage';
 import { projectService } from '../../services/projectService';
@@ -192,6 +192,7 @@ interface DraggableTaskRowProps {
   onTaskDelete: (task: Task) => void;
   onTaskReorder: (taskId: string, newOrder: number, status: Task['status']) => void;
   onTaskUpdate?: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  onDeployAgent: (taskId: string) => void;
   tasksInStatus: Task[];
   style?: React.CSSProperties;
 }
@@ -204,6 +205,7 @@ const DraggableTaskRow = ({
   onTaskDelete, 
   onTaskReorder,
   onTaskUpdate,
+  onDeployAgent,
   tasksInStatus,
   style
 }: DraggableTaskRowProps) => {
@@ -366,6 +368,16 @@ const DraggableTaskRow = ({
       </td>
       <td className="p-3">
         <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button 
+            type="button"
+            onClick={() => onDeployAgent(task.id)}
+            className={`p-1.5 rounded-full transition-all duration-300 ${task.status === 'in-progress' ? 'bg-blue-500/20 text-blue-500 animate-pulse' : task.status === 'complete' ? 'bg-green-500/20 text-green-500' : task.status === 'review' ? 'bg-purple-500/20 text-purple-500' : 'bg-gray-500/20 text-gray-500 hover:bg-blue-500/30 hover:shadow-[0_0_10px_rgba(59,130,246,0.3)]'}`}
+            title={task.status === 'in-progress' ? 'Agent running' : task.status === 'complete' ? 'Agent completed' : task.status === 'review' ? 'Agent in review' : 'Deploy agent'}
+            aria-label={task.status === 'in-progress' ? 'Agent running' : task.status === 'complete' ? 'Agent completed' : task.status === 'review' ? 'Agent in review' : 'Deploy agent'}
+            disabled={task.status === 'in-progress' || task.status === 'complete' || task.status === 'review'}
+          >
+            {task.status === 'in-progress' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : task.status === 'complete' ? <Check className="w-3.5 h-3.5" /> : task.status === 'review' ? <Eye className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+          </button>
           <button 
             type="button"
             onClick={() => onTaskDelete(task)}

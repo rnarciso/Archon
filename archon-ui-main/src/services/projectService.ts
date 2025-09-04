@@ -366,6 +366,21 @@ export const projectService = {
   },
 
   /**
+   * Update agent configuration for a project
+   */
+  async updateAgentConfig(projectId: string, agent: string): Promise<void> {
+    try {
+      await callAPI(`/api/projects/${projectId}/agent-config`, {
+        method: 'POST',
+        body: JSON.stringify({ agent })
+      });
+    } catch (error) {
+      console.error(`Failed to update agent config for project ${projectId}:`, error);
+      throw error;
+    }
+  },
+
+  /**
    * Archive/unarchive a project
    */
   async archiveProject(projectId: string, isArchived: boolean): Promise<any> {

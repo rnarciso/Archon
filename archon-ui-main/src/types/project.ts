@@ -73,6 +73,7 @@ export interface Task {
   // Extended UI properties (can be stored in sources JSONB)
   featureColor?: string;
   priority?: TaskPriority;
+  agentStatus?: 'pending' | 'running' | 'completed' | 'error'; // New field for agent status
   
   // UI-specific computed properties
   uiStatus?: UITaskStatus; // Computed from database status

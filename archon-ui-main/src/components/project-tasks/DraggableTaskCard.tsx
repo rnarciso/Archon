@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useDrag, useDrop } from 'react-dnd';
-import { Edit, Trash2, RefreshCw, Tag, User, Bot, Clipboard } from 'lucide-react';
-import { Task } from './TaskTableView';
+import { Edit, Trash2, RefreshCw, Tag, User, Bot, Clipboard, CheckCircle, AlertCircle, XCircle, Loader2 } from 'lucide-react';
+import { Task } from '../../types/project'; // Updated import path for Task
 import { ItemTypes, getAssigneeIcon, getAssigneeGlow, getOrderColor, getOrderGlow } from '../../lib/task-utils';
 import { copyToClipboard as copyToClipboardHelper } from '../../lib/clipboard';
 import { useToast } from '../../contexts/ToastContext';
@@ -17,7 +17,34 @@ export interface DraggableTaskCardProps {
   allTasks?: Task[];
   hoveredTaskId?: string | null;
   onTaskHover?: (taskId: string | null) => void;
+  onDeployAgent: (projectId: string, taskId: string) => void; // New prop
 }
+
+const getAgentStatusIconAndColor = (status?: Task['agentStatus']) => {
+  switch (status) {
+    case 'running':
+      return {
+        icon: <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />,
+        className: 'bg-blue-100/80 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-500/30 hover:shadow-[0_0_10px_rgba(59,130,246,0.3)]'
+      };
+    case 'completed':
+      return {
+        icon: <CheckCircle className="w-3 h-3" aria-hidden="true" />,
+        className: 'bg-green-100/80 dark:bg-green-500/20 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-500/30 hover:shadow-[0_0_10px_rgba(34,197,94,0.3)]'
+      };
+    case 'error':
+      return {
+        icon: <XCircle className="w-3 h-3" aria-hidden="true" />,
+        className: 'bg-red-100/80 dark:bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 hover:shadow-[0_0_10px_rgba(239,68,68,0.3)]'
+      };
+    case 'pending':
+    default:
+      return {
+        icon: <Bot className="w-3 h-3" aria-hidden="true" />,
+        className: 'bg-purple-100/80 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-500/30 hover:shadow-[0_0_10px_rgba(168,85,247,0.3)]'
+      };
+  }
+};
 
 export const DraggableTaskCard = ({
   task,
@@ -107,6 +134,8 @@ export const DraggableTaskCard = ({
   // Transition settings
   const transitionStyles = 'transition-all duration-200 ease-in-out';
 
+  const { icon: agentIcon, className: agentButtonClass } = getAgentStatusIconAndColor(task.agentStatus);
+
   return (
     <div 
       ref={(node) => drag(drop(node))}
@@ -147,6 +176,18 @@ export const DraggableTaskCard = ({
               
               {/* Action buttons group */}
               <div className="ml-auto flex items-center gap-1.5">
+                <button 
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeployAgent(task.project_id, task.id); // Call the onDeployAgent function
+                  }} 
+                  className={`w-5 h-5 rounded-full flex items-center justify-center ${agentButtonClass} transition-all duration-300`}
+                  title="Deploy Agent"
+                  aria-label="Deploy Agent"
+                >
+                  {agentIcon}
+                </button>
                 <button 
                   type="button"
                   onClick={(e) => {

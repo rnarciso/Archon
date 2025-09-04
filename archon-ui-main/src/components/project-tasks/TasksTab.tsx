@@ -466,6 +466,8 @@ export const TasksTab = ({
     }
   };
 
+  
+
   // Inline task creation function
   const createTaskInline = async (newTask: Omit<Task, 'id'>) => {
     try {
@@ -587,6 +589,7 @@ export const TasksTab = ({
               onTaskReorder={handleTaskReorder}
               onTaskCreate={createTaskInline}
               onTaskUpdate={updateTaskInline}
+              onDeployAgent={deployAgent}
             />
           ) : (
             <TaskBoardView

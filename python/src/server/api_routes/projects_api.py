@@ -37,6 +37,7 @@ from ..services.projects.versioning_service import VersioningService
 
 # Import Socket.IO broadcast functions from socketio_handlers
 from .socketio_handlers import broadcast_project_update
+from .rt_api import rt_manager
 
 router = APIRouter(prefix="/api", tags=["projects"])
 
@@ -815,6 +816,8 @@ async def update_task(task_id: str, request: UpdateTaskRequest):
             f"Task updated successfully | task_id={task_id} | project_id={updated_task.get('project_id')} | updated_fields={list(update_fields.keys())}"
         )
 
+        await rt_manager.broadcast({"task_id": task_id, "status": updated_task.get('status')})
+
         return {"message": "Task updated successfully", "task": updated_task}
 
     except HTTPException:
@@ -881,6 +884,8 @@ async def mcp_update_task_status_with_socketio(task_id: str, status: str):
         logfire.info(
             f"Task status updated with Socket.IO broadcast | task_id={task_id} | project_id={project_id} | status={status}"
         )
+
+        await rt_manager.broadcast({"task_id": task_id, "status": status})
 
         return {"message": "Task status updated successfully", "task": updated_task}
 

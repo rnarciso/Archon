@@ -7,8 +7,10 @@ Mirrors the functionality of the original manage_task tool but with individual t
 
 import json
 import logging
+from http import HTTPStatus
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
+import uuid
 
 import httpx
 from mcp.server.fastmcp import Context, FastMCP
@@ -450,3 +452,166 @@ def register_task_tools(mcp: FastMCP):
         except Exception as e:
             logger.error(f"Error deleting task: {e}", exc_info=True)
             return MCPErrorFormatter.from_exception(e, "delete task")
+
+    @mcp.tool()
+    async def deploy_agent(ctx: Context, project_id: str, task_id: str) -> str:
+        """
+        Deploy an AI agent to work on a specific task.
+
+        Args:
+            project_id: UUID of the project
+            task_id: UUID of the task to deploy the agent on
+
+        Returns:
+            JSON confirmation of the deployment
+        """
+        try:
+            # 1. Validate UUIDs
+            try:
+                uuid.UUID(project_id)
+                uuid.UUID(task_id)
+            except ValueError:
+                return MCPErrorFormatter.format_error(
+                    error_type="validation_error",
+                    message="Invalid project_id or task_id format. Must be a valid UUID.",
+                    http_status=HTTPStatus.BAD_REQUEST,
+                )
+
+            # 2. Placeholder for Permissions Logic
+            # In a real application, you would check if the current user (from ctx.auth or similar)
+            # has permissions to access this project and deploy agents to its tasks.
+            # For example:
+            # if not await check_user_project_permission(ctx.user, project_id, "deploy_agent"):
+            #     return MCPErrorFormatter.format_error(
+            #         error_type="permission_denied",
+            #         message="User does not have permission to deploy agents to this project.",
+            #         http_status=HTTPStatus.FORBIDDEN,
+            #     )
+            logger.info(f"Permissions check placeholder: User has access to project {project_id} and task {task_id}")
+
+            api_url = get_api_url()
+            timeout = get_default_timeout()
+
+            # Update task status to 'doing' (in-progress)
+            try:
+                await client.put(
+                    urljoin(api_url, f"/api/tasks/{task_id}"),
+                    json={"status": "doing"}
+                )
+                logger.info(f"Task {task_id} status updated to 'doing' (in-progress).")
+            except httpx.RequestError as e:
+                logger.error(f"Failed to update task status to 'doing' for task {task_id}: {e}")
+                return MCPErrorFormatter.from_exception(
+                    e, "update task status", {"task_id": task_id, "status": "doing"}
+                )
+
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                # Call the backend service to execute the agent script
+                response = await client.post(
+                    urljoin(api_url, f"/api/tasks/{task_id}/execute-agent"),
+                    json={"project_id": project_id, "task_id": task_id}
+                )
+
+                if response.status_code == 200:
+                    return json.dumps({
+                        "success": True,
+                        "message": f"Agent deployed to task {task_id} in project {project_id} successfully.",
+                    })
+                elif response.status_code == 404:
+                    return MCPErrorFormatter.format_error(
+                        error_type="not_found",
+                        message=f"Task {task_id} or Project {project_id} not found",
+                        suggestion="Verify the project and task IDs are correct",
+                        http_status=HTTPStatus.NOT_FOUND,
+                    )
+                elif response.status_code == HTTPStatus.FORBIDDEN:
+                    return MCPErrorFormatter.format_error(
+                        error_type="permission_denied",
+                        message="You do not have permission to deploy agents to this task.",
+                        http_status=HTTPStatus.FORBIDDEN,
+                    )
+                else:
+                    return MCPErrorFormatter.from_http_error(response, "deploy agent")
+
+        except httpx.RequestError as e:
+            return MCPErrorFormatter.from_exception(
+                e, "deploy agent", {"project_id": project_id, "task_id": task_id}
+            )
+        except Exception as e:
+            logger.error(f"Error deploying agent: {e}", exc_info=True)
+            return MCPErrorFormatter.from_exception(e, "deploy agent")
+
+    @mcp.tool()
+    async def update_task_status_callback(
+        ctx: Context,
+        task_id: str,
+        status: str,
+        details: Optional[str] = None,
+    ) -> str:
+        """
+        Callback endpoint for agent script to update task status.
+
+        Args:
+            task_id: UUID of the task to update
+            status: New status for the task (e.g., "completed", "error")
+            details: Optional details or error message
+
+        Returns:
+            JSON confirmation of the update
+        """
+        try:
+            # 1. Validate UUID
+            try:
+                uuid.UUID(task_id)
+            except ValueError:
+                return MCPErrorFormatter.format_error(
+                    error_type="validation_error",
+                    message="Invalid task_id format. Must be a valid UUID.",
+                    http_status=HTTPStatus.BAD_REQUEST,
+                )
+
+            # 2. Validate status
+            valid_statuses = ["completed", "error"]
+            if status not in valid_statuses:
+                return MCPErrorFormatter.format_error(
+                    error_type="validation_error",
+                    message=f"Invalid status: {status}. Must be one of {valid_statuses}.",
+                    http_status=HTTPStatus.BAD_REQUEST,
+                )
+
+            api_url = get_api_url()
+            timeout = get_default_timeout()
+
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                # Update task status using the existing update_task API
+                update_payload = {"status": status}
+                if details:
+                    update_payload["description"] = details # Or a dedicated field for agent output
+
+                response = await client.put(
+                    urljoin(api_url, f"/api/tasks/{task_id}"),
+                    json=update_payload
+                )
+
+                if response.status_code == 200:
+                    return json.dumps({
+                        "success": True,
+                        "message": f"Task {task_id} status updated to {status} successfully.",
+                    })
+                elif response.status_code == 404:
+                    return MCPErrorFormatter.format_error(
+                        error_type="not_found",
+                        message=f"Task {task_id} not found",
+                        suggestion="Verify the task ID is correct",
+                        http_status=HTTPStatus.NOT_FOUND,
+                    )
+                else:
+                    return MCPErrorFormatter.from_http_error(response, "update task status callback")
+
+        except httpx.RequestError as e:
+            return MCPErrorFormatter.from_exception(
+                e, "update task status callback", {"task_id": task_id, "status": status}
+            )
+        except Exception as e:
+            logger.error(f"Error in update_task_status_callback: {e}", exc_info=True)
+            return MCPErrorFormatter.from_exception(e, "update task status callback")

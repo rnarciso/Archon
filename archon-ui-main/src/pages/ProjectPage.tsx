@@ -7,6 +7,7 @@ import { DocsTab } from '../components/project-tasks/DocsTab';
 // import { FeaturesTab } from '../components/project-tasks/FeaturesTab';
 // import { DataTab } from '../components/project-tasks/DataTab';
 import { TasksTab } from '../components/project-tasks/TasksTab';
+import { AgentConfigTab } from '../components/project-tasks/AgentConfigTab';
 import { Button } from '../components/ui/Button';
 import { ChevronRight, ShoppingCart, Code, Briefcase, Layers, Plus, X, AlertCircle, Loader2, Heart, BarChart3, Trash2, Pin, ListTodo, Activity, CheckCircle2, Clipboard, Archive } from 'lucide-react';
 
@@ -17,7 +18,7 @@ import type { Task } from '../components/project-tasks/TaskTableView';
 import { ProjectCreationProgressCard } from '../components/ProjectCreationProgressCard';
 import { projectCreationProgressService } from '../services/projectCreationProgressService';
 import type { ProjectCreationProgressData } from '../services/projectCreationProgressService';
-import { projectListSocketIO, taskUpdateSocketIO } from '../services/socketIOService';
+import { projectListSocketIO, taskUpdateSocketIO, rtSocketIO } from '../services/socketIOService';
 import { copyToClipboard as copyToClipboardHelper } from '../lib/clipboard';
 
 interface ProjectPageProps {
@@ -306,6 +307,31 @@ export function ProjectPage({
       taskUpdateSocketIO.removeMessageHandler('task_archived', handleTaskArchived);
     };
   }, [selectedProject?.id]);
+
+  useEffect(() => {
+    const connectRTWebSocket = async () => {
+      try {
+        await rtSocketIO.connect('/api/rt/stream');
+        rtSocketIO.addMessageHandler('task_status_update', (message) => {
+          setTasks((prevTasks) =>
+            prevTasks.map((task) =>
+              task.id === message.data.task_id
+                ? { ...task, status: message.data.status.toLowerCase() as Task['status'] }
+                : task
+            )
+          );
+        });
+      } catch (error) {
+        console.error('Failed to connect to real-time WebSocket:', error);
+      }
+    };
+
+    connectRTWebSocket();
+
+    return () => {
+      rtSocketIO.disconnect();
+    };
+  }, []);
 
   const loadProjects = async () => {
     try {
@@ -801,6 +827,11 @@ export function ProjectPage({
                         {project.title}
                       </h3>
                     </div>
+                    {project.github_repo && (
+                      <div className="text-center text-sm text-gray-500 dark:text-gray-400 mb-4">
+                        GitHub: <a href={project.github_repo} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate">{project.github_repo}</a>
+                      </div>
+                    )}
                     <div className="flex items-stretch gap-2 w-full">
                       {/* Neon pill boxes for task counts */}
                       {/* Todo pill */}
@@ -944,6 +975,7 @@ export function ProjectPage({
               <TabsTrigger value="tasks" className="py-3 font-mono transition-all duration-300" color="orange">
                 Tasks
               </TabsTrigger>
+<TabsTrigger value="agent-config" className="py-3 font-mono transition-all duration-300" color="green">Agent Config</TabsTrigger>
             </TabsList>
             
             {/* Tab content without AnimatePresence to prevent unmounting */}
@@ -1000,6 +1032,7 @@ export function ProjectPage({
                   )}
                 </TabsContent>
               )}
+{activeTab === 'agent-config' && (<TabsContent value="agent-config" className="mt-0"> <AgentConfigTab project={selectedProject} /> </TabsContent>)}
             </div>
           </Tabs>
         </motion.div>

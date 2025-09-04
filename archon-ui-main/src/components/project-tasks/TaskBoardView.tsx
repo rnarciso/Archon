@@ -15,6 +15,7 @@ interface TaskBoardViewProps {
   onTaskDelete: (task: Task) => void;
   onTaskMove: (taskId: string, newStatus: Task['status']) => void;
   onTaskReorder: (taskId: string, targetIndex: number, status: Task['status']) => void;
+  onDeployAgent: (projectId: string, taskId: string) => void; // New prop
 }
 
 interface ColumnDropZoneProps {
@@ -31,6 +32,8 @@ interface ColumnDropZoneProps {
   onTaskHover: (taskId: string | null) => void;
   selectedTasks: Set<string>;
   onTaskSelect: (taskId: string) => void;
+  onDeployAgent: (projectId: string, taskId: string) => void; // New prop
+
 }
 
 const ColumnDropZone = ({
@@ -121,6 +124,7 @@ const ColumnDropZone = ({
             allTasks={allTasks}
             hoveredTaskId={hoveredTaskId}
             onTaskHover={onTaskHover}
+            onDeployAgent={onDeployAgent} // Pass the new prop
           />
         ))}
       </div>
@@ -134,7 +138,8 @@ export const TaskBoardView = ({
   onTaskComplete,
   onTaskDelete,
   onTaskMove,
-  onTaskReorder
+  onTaskReorder,
+  onDeployAgent
 }: TaskBoardViewProps) => {
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
@@ -329,6 +334,7 @@ export const TaskBoardView = ({
           onTaskHover={setHoveredTaskId}
           selectedTasks={selectedTasks}
           onTaskSelect={toggleTaskSelection}
+          onDeployAgent={onDeployAgent} // Pass the new prop
         />
         
         {/* In Progress Column */}
@@ -346,6 +352,7 @@ export const TaskBoardView = ({
           onTaskHover={setHoveredTaskId}
           selectedTasks={selectedTasks}
           onTaskSelect={toggleTaskSelection}
+          onDeployAgent={onDeployAgent} // Pass the new prop
         />
         
         {/* Review Column */}
@@ -363,6 +370,7 @@ export const TaskBoardView = ({
           onTaskHover={setHoveredTaskId}
           selectedTasks={selectedTasks}
           onTaskSelect={toggleTaskSelection}
+          onDeployAgent={onDeployAgent} // Pass the new prop
         />
         
         {/* Complete Column */}
@@ -380,6 +388,7 @@ export const TaskBoardView = ({
           onTaskHover={setHoveredTaskId}
           selectedTasks={selectedTasks}
           onTaskSelect={toggleTaskSelection}
+          onDeployAgent={onDeployAgent} // Pass the new prop
         />
       </div>
 

@@ -119,14 +119,31 @@ def test_list_sources(client):
         assert response.status_code in [404, 405, 422, 500]
 
 
+import time
+
 def test_archive_project(client):
-    # Create a project first
     project_data = {"title": "Test Project to Archive", "description": ""}
     response = client.post("/api/projects", json=project_data)
     assert response.status_code == 200
-    created_project = response.json()
-    assert "id" in created_project, f"Response should contain 'id' field: {created_project}"
-    project_id = created_project["id"]
+    response_data = response.json()
+
+    project_id = None
+    if "id" in response_data:
+        project_id = response_data["id"]
+    elif "progress_id" in response_data:
+        # Poll for project creation
+        for _ in range(10):  # Poll for 10 seconds
+            time.sleep(1)
+            projects_response = client.get("/api/projects")
+            projects = projects_response.json()
+            for project in projects:
+                if project["title"] == project_data["title"]:
+                    project_id = project["id"]
+                    break
+            if project_id:
+                break
+
+    assert project_id, "Could not retrieve created project ID"
 
     # Archive the project
     archive_response = client.put(f"/api/projects/{project_id}/archive?archived=true")

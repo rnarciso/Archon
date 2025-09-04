@@ -8,111 +8,49 @@ export interface ClipboardResult {
 // Async version - preferred for modern browsers
 export const copyToClipboard = async (text: string): Promise<ClipboardResult> => {
   try {
-    // Check if clipboard API is available and in secure context
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      return { success: true };
+    if (!navigator.clipboard || !window.isSecureContext) {
+      return { success: false, error: 'Clipboard API not available or not in a secure context.' };
     }
-
-    // Fallback to legacy method
-    return copyToClipboardLegacy(text);
-  } catch (error) {
-    console.error('Failed to copy text with navigator.clipboard:', error);
-    // Try legacy fallback if modern API fails
-    return copyToClipboardLegacy(text);
-  }
-};
-
-// Legacy fallback with improved cross-platform support
-export const copyToClipboardLegacy = (text: string): ClipboardResult => {
-  try {
-    const textArea = document.createElement('textarea');
-    textArea.value = text;
-    
-    // Improved styling for better cross-platform compatibility
-    textArea.style.position = 'fixed';
-    textArea.style.left = '-9999px';
-    textArea.style.top = '-9999px';
-    textArea.style.width = '1px';
-    textArea.style.height = '1px';
-    textArea.style.padding = '0';
-    textArea.style.border = 'none';
-    textArea.style.outline = 'none';
-    textArea.style.boxShadow = 'none';
-    textArea.style.background = 'transparent';
-    
-    // Set attributes for better accessibility and iOS compatibility
-    textArea.setAttribute('readonly', '');
-    textArea.setAttribute('aria-hidden', 'true');
-    textArea.setAttribute('tabindex', '-1');
-    
-    document.body.appendChild(textArea);
-    
-    // Enhanced selection for iOS Safari compatibility
-    if (navigator.userAgent.match(/ipad|ipod|iphone/i)) {
-      const range = document.createRange();
-      range.selectNodeContents(textArea);
-      const selection = window.getSelection();
-      if (selection) {
-        selection.removeAllRanges();
-        selection.addRange(range);
-      }
-      textArea.setSelectionRange(0, text.length);
-    } else {
-      textArea.select();
-      textArea.setSelectionRange(0, text.length);
-    }
-    
-    // Execute copy command
-    const successful = document.execCommand('copy');
-    document.body.removeChild(textArea);
-    
-    if (successful) {
-      return { success: true };
-    } else {
-      return { 
-        success: false, 
-        error: 'Copy command failed - execCommand returned false' 
-      };
-    }
-    
+    await navigator.clipboard.writeText(text);
+    return { success: true };
   } catch (error) {
     return { 
       success: false, 
-      error: `Legacy copy failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      error: `Failed to copy text: ${error instanceof Error ? error.message : 'Unknown error'}` 
     };
   }
 };
 
-// Synchronous version with proper error handling
+// Sync version - fallback for older browsers
 export const copyToClipboardSync = (text: string): ClipboardResult => {
   try {
-    // Check if clipboard API is available and in secure context
-    if (navigator.clipboard && window.isSecureContext) {
-      // For modern browsers, we'll use the async API but return immediately
-      // Note: This won't provide immediate feedback on success/failure
-      navigator.clipboard.writeText(text).catch(err => {
-        console.error('Failed to copy text with navigator.clipboard:', err);
-      });
-      return { success: true }; // Optimistic return
-    }
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
 
-    // Use legacy fallback for immediate synchronous result
-    return copyToClipboardLegacy(text);
-    
+    // Hide the textarea from the user
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    textArea.style.top = '-9999px';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    if (!successful) {
+      return { success: false, error: 'execCommand returned false' };
+    }
+    return { success: true };
   } catch (error) {
-    console.error('Sync copy failed:', error);
-    return copyToClipboardLegacy(text);
+    return { success: false, error: `Failed to copy text with execCommand: ${error instanceof Error ? error.message : 'Unknown error'}` };
   }
 };
 
-// Utility function to check if clipboard is supported
 export const isClipboardSupported = (): boolean => {
-  return !!(
-    (navigator.clipboard && window.isSecureContext) ||
-    document.queryCommandSupported?.('copy')
-  );
-};
+    return !!(navigator.clipboard || (document.queryCommandSupported && document.queryCommandSupported('copy')));
+  };
+
+
 
 // Usage examples:
 /*

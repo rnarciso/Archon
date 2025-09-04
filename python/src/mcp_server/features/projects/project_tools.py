@@ -350,3 +350,48 @@ def register_project_tools(mcp: FastMCP):
         except Exception as e:
             logger.error(f"Error updating project: {e}", exc_info=True)
             return MCPErrorFormatter.from_exception(e, "update project")
+
+    @mcp.tool()
+    async def update_agent_config(ctx: Context, project_id: str, agent: str) -> str:
+        """
+        Update agent configuration for a project.
+
+        Args:
+            project_id: UUID of the project to update
+            agent: The name of the agent to use (e.g., 'claude', 'gemini', 'qwen')
+
+        Returns:
+            JSON confirmation of the update
+        """
+        try:
+            api_url = get_api_url()
+            timeout = get_default_timeout()
+
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    urljoin(api_url, f"/api/projects/{project_id}/agent-config"),
+                    json={"agent": agent},
+                )
+
+                if response.status_code == 200:
+                    return json.dumps({
+                        "success": True,
+                        "message": f"Agent configuration for project {project_id} updated successfully.",
+                    })
+                elif response.status_code == 404:
+                    return MCPErrorFormatter.format_error(
+                        error_type="not_found",
+                        message=f"Project {project_id} not found",
+                        suggestion="Verify the project ID is correct",
+                        http_status=404,
+                    )
+                else:
+                    return MCPErrorFormatter.from_http_error(response, "update agent config")
+
+        except httpx.RequestError as e:
+            return MCPErrorFormatter.from_exception(
+                e, "update agent config", {"project_id": project_id}
+            )
+        except Exception as e:
+            logger.error(f"Error updating agent config: {e}", exc_info=True)
+            return MCPErrorFormatter.from_exception(e, "update agent config")

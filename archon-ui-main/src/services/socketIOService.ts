@@ -492,3 +492,4 @@ export const knowledgeSocketIO = new WebSocketService();
 // Export instances for backward compatibility
 export const taskUpdateSocketIO = new WebSocketService();
 export const projectListSocketIO = new WebSocketService();
+export const rtSocketIO = new WebSocketService();
