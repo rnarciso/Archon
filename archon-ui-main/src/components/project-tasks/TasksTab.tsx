@@ -575,6 +575,11 @@ export const TasksTab = ({
     [tasks, editingTask?.id]
   );
 
+  const deployAgent = (taskId: string) => {
+    console.log(`Deploying agent for task ${taskId}`);
+    // TODO: Implement agent deployment logic
+  };
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="min-h-[70vh] relative">

@@ -30,6 +30,7 @@ interface TaskTableViewProps {
   onTaskReorder: (taskId: string, newOrder: number, status: Task['status']) => void;
   onTaskCreate?: (task: Omit<Task, 'id'>) => Promise<void>;
   onTaskUpdate?: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  onDeployAgent: (taskId: string) => void;
 }
 
 const getAssigneeGlassStyle = (assigneeName: 'User' | 'Archon' | 'AI IDE Agent') => {
@@ -584,7 +585,8 @@ export const TaskTableView = ({
   onTaskDelete, 
   onTaskReorder,
   onTaskCreate,
-  onTaskUpdate
+  onTaskUpdate,
+  onDeployAgent
 }: TaskTableViewProps) => {
   const [statusFilter, setStatusFilter] = useState<Task['status'] | 'all'>('backlog');
 
@@ -875,6 +877,7 @@ export const TaskTableView = ({
                 onTaskDelete={handleDeleteTask}
                 onTaskReorder={onTaskReorder}
                 onTaskUpdate={onTaskUpdate}
+                onDeployAgent={onDeployAgent}
                 tasksInStatus={getTasksByStatus(task.status)}
                 style={{ 
                   opacity: scrollOpacities.get(`row-${index}`) || 1,
