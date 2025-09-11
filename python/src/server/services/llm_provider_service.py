@@ -186,3 +186,23 @@ async def get_embedding_model(provider: str | None = None) -> str:
         logger.error(f"Error getting embedding model: {e}")
         # Fallback to OpenAI default
         return "text-embedding-3-small"
+
+
+def get_embedding_dimensions(model_name: str) -> int:
+    """
+    Get the embedding dimensions for a given model name.
+
+    Args:
+        model_name: The name of the embedding model.
+
+    Returns:
+        The dimensions of the embedding model.
+    """
+    if "text-embedding-3-large" in model_name:
+        return 3072
+    if "text-embedding-004" in model_name:  # Google
+        return 768
+    if "nomic-embed-text" in model_name:  # Ollama
+        return 768
+    # Default to OpenAI's text-embedding-3-small dimension
+    return 1536

@@ -442,3 +442,25 @@ When connected to Client/Cursor/Windsurf:
 - Docker Compose handles service orchestration
 - TanStack Query for all data fetching - NO PROP DRILLING
 - Vertical slice architecture in `/features` - features own their sub-features
+
+## Embedding Dimension Configuration
+
+When changing the embedding provider (e.g., from OpenAI to Google), you may need to update the database schema to match the new provider's embedding dimension. For example, OpenAI's `text-embedding-3-small` uses 1536 dimensions, while Google's `text-embedding-004` uses 768 dimensions.
+
+To update the database schema, a migration script is provided at `migration/update_embedding_dimension.sql`.
+
+**IMPORTANT:** Running this script is a destructive operation and will delete all existing embeddings. You must re-crawl all your knowledge base sources after updating the schema.
+
+### Steps to Change Embedding Dimension:
+
+1.  **Update the `EMBEDDING_DIMENSIONS` Setting:**
+    *   In the Archon UI, go to `Settings -> RAG Strategy`.
+    *   Find the `EMBEDDING_DIMENSIONS` setting and update it to the new dimension (e.g., `768`).
+
+2.  **Run the Migration Script:**
+    *   Open the `migration/update_embedding_dimension.sql` file.
+    *   Replace all instances of the placeholder dimension (e.g., `vector(768)`) with your new dimension if it's different. The script is pre-configured for 768.
+    *   Execute this script in your Supabase SQL Editor.
+
+3.  **Re-Crawl Data:**
+    *   After the migration is complete, you must delete all existing knowledge sources from the UI and re-crawl them to generate new embeddings with the correct dimension.

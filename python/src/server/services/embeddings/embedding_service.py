@@ -13,7 +13,7 @@ import openai
 
 from ...config.logfire_config import safe_span, search_logger
 from ..credential_service import credential_service
-from ..llm_provider_service import get_embedding_model, get_llm_client
+from ..llm_provider_service import get_embedding_dimensions, get_embedding_model, get_llm_client
 from ..threading_service import get_threading_service
 from .embedding_exceptions import (
     EmbeddingAPIError,
@@ -180,17 +180,15 @@ async def create_embeddings_batch(
     ) as span:
         try:
             async with get_llm_client(provider=provider, use_embedding_provider=True) as client:
-                # Load batch size and dimensions from settings
+                # Load batch size from settings
                 try:
                     rag_settings = await credential_service.get_credentials_by_category(
                         "rag_strategy"
                     )
                     batch_size = int(rag_settings.get("EMBEDDING_BATCH_SIZE", "100"))
-                    embedding_dimensions = int(rag_settings.get("EMBEDDING_DIMENSIONS", "1536"))
                 except Exception as e:
                     search_logger.warning(f"Failed to load embedding settings: {e}, using defaults")
                     batch_size = 100
-                    embedding_dimensions = 1536
 
                 total_tokens_used = 0
 
@@ -221,6 +219,17 @@ async def create_embeddings_batch(
                                 try:
                                     # Create embeddings for this batch
                                     embedding_model = await get_embedding_model(provider=provider)
+
+                                    # Get dimensions from model, with user override
+                                    embedding_dimensions = get_embedding_dimensions(embedding_model)
+                                    try:
+                                        rag_settings = await credential_service.get_credentials_by_category("rag_strategy")
+                                        embedding_dimensions = int(
+                                            rag_settings.get("EMBEDDING_DIMENSIONS", embedding_dimensions)
+                                        )
+                                    except Exception:
+                                        pass  # Use model default
+
                                     response = await client.embeddings.create(
                                         model=embedding_model,
                                         input=batch,
