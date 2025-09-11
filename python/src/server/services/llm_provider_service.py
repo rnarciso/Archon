@@ -165,7 +165,11 @@ async def get_embedding_model(provider: str | None = None) -> str:
             provider_name = provider_config["provider"]
             custom_model = provider_config["embedding_model"]
 
-        # Use custom model if specified
+        # If a custom model is specified, use it, but not for Google.
+        # For Google, we hardcode the model to avoid dimension mismatches.
+        if provider_name == "google":
+            return "text-embedding-004"
+
         if custom_model:
             return custom_model
 

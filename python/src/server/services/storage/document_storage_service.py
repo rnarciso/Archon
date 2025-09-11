@@ -117,8 +117,6 @@ async def add_documents_to_supabase(
 
         # Check if contextual embeddings are enabled
         # Fix: Get from credential service instead of environment
-        from ..credential_service import credential_service
-
         try:
             use_contextual_embeddings = await credential_service.get_credential(
                 "USE_CONTEXTUAL_EMBEDDINGS", "false", decrypt=True

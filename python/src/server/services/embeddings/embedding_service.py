@@ -186,11 +186,24 @@ async def create_embeddings_batch(
                         "rag_strategy"
                     )
                     batch_size = int(rag_settings.get("EMBEDDING_BATCH_SIZE", "100"))
-                    embedding_dimensions = int(rag_settings.get("EMBEDDING_DIMENSIONS", "1536"))
+
+                    # Determine provider to select correct dimensions
+                    # Get the active provider if not explicitly passed
+                    current_provider = provider
+                    if not current_provider:
+                        provider_config = await credential_service.get_active_provider("embedding")
+                        current_provider = provider_config["provider"]
+
+                    if current_provider == "google":
+                        embedding_dimensions = 768
+                        logger.info("Using Google provider, setting embedding dimensions to 768")
+                    else:
+                        embedding_dimensions = int(rag_settings.get("EMBEDDING_DIMENSIONS", "1536"))
+
                 except Exception as e:
                     search_logger.warning(f"Failed to load embedding settings: {e}, using defaults")
                     batch_size = 100
-                    embedding_dimensions = 1536
+                    embedding_dimensions = 1536 # Default for OpenAI
 
                 total_tokens_used = 0
 
