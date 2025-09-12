@@ -156,6 +156,8 @@ class BatchCrawlStrategy:
             transformed_urls.append(transformed)
             url_mapping[transformed] = url
 
+        retry_count = int(settings.get("CRAWL_RETRY_COUNT", "3"))
+
         for i in range(0, total_urls, batch_size):
             # Check for cancellation before processing each batch
             if cancellation_check:
@@ -175,63 +177,80 @@ class BatchCrawlStrategy:
                 processed_pages=processed
             )
 
-            # Crawl this batch using arun_many with streaming
-            logger.info(
-                f"Starting parallel crawl of batch {batch_start + 1}-{batch_end} ({len(batch_urls)} URLs)"
-            )
-            batch_results = await self.crawler.arun_many(
-                urls=batch_urls, config=crawl_config, dispatcher=dispatcher
-            )
+            # Crawl this batch with retry logic
+            urls_to_crawl = batch_urls
+            for attempt in range(retry_count):
+                if not urls_to_crawl:
+                    break
 
-            # Handle streaming results
-            async for result in batch_results:
-                # Check for cancellation during streaming
-                if cancellation_check:
-                    try:
-                        cancellation_check()
-                    except asyncio.CancelledError:
-                        cancelled = True
+                logger.info(
+                    f"Starting parallel crawl of {len(urls_to_crawl)} URLs (attempt {attempt + 1}/{retry_count})"
+                )
+                batch_results = await self.crawler.arun_many(
+                    urls=urls_to_crawl, config=crawl_config, dispatcher=dispatcher
+                )
+
+                failed_urls = []
+                # Handle streaming results
+                async for result in batch_results:
+                    # Check for cancellation during streaming
+                    if cancellation_check:
+                        try:
+                            cancellation_check()
+                        except asyncio.CancelledError:
+                            cancelled = True
+                            await report_progress(
+                                min(int((processed / max(total_urls, 1)) * 100), 99),
+                                "Crawl cancelled",
+                                status="cancelled",
+                                total_pages=total_urls,
+                                processed_pages=processed,
+                                successful_count=len(successful_results),
+                            )
+                            break
+                        except Exception:
+                            logger.exception("Unexpected error from cancellation_check()")
+                            raise
+
+                    if attempt == 0: # Only increment processed on the first attempt
+                        processed += 1
+
+                    if result.success and result.markdown:
+                        # Map back to original URL
+                        original_url = url_mapping.get(result.url, result.url)
+                        successful_results.append({
+                            "url": original_url,
+                            "markdown": result.markdown,
+                            "html": result.html,  # Use raw HTML
+                        })
+                    else:
+                        logger.warning(
+                            f"Failed to crawl {result.url} on attempt {attempt + 1}: {getattr(result, 'error_message', 'Unknown error')}"
+                        )
+                        failed_urls.append(result.url)
+
+                    # Report individual URL progress with smooth increments
+                    progress_percentage = int((processed / total_urls) * 100)
+                    if (
+                        processed % 5 == 0 or processed == total_urls
+                    ):
                         await report_progress(
-                            min(int((processed / max(total_urls, 1)) * 100), 99),
-                            "Crawl cancelled",
-                            status="cancelled",
+                            progress_percentage,
+                            f"Crawled {processed}/{total_urls} pages ({len(successful_results)} successful)",
                             total_pages=total_urls,
                             processed_pages=processed,
-                            successful_count=len(successful_results),
+                            successful_count=len(successful_results)
                         )
-                        break
-                    except Exception:
-                        logger.exception("Unexpected error from cancellation_check()")
-                        raise
 
-                processed += 1
-                if result.success and result.markdown:
-                    # Map back to original URL
-                    original_url = url_mapping.get(result.url, result.url)
-                    successful_results.append({
-                        "url": original_url,
-                        "markdown": result.markdown,
-                        "html": result.html,  # Use raw HTML
-                    })
-                else:
-                    logger.warning(
-                        f"Failed to crawl {result.url}: {getattr(result, 'error_message', 'Unknown error')}"
-                    )
+                if cancelled:
+                    break
 
-                # Report individual URL progress with smooth increments
-                # Calculate progress as percentage of total URLs processed
-                progress_percentage = int((processed / total_urls) * 100)
-                # Report more frequently for smoother progress
-                if (
-                    processed % 5 == 0 or processed == total_urls
-                ):  # Report every 5 URLs or at the end
-                    await report_progress(
-                        progress_percentage,
-                        f"Crawled {processed}/{total_urls} pages ({len(successful_results)} successful)",
-                        total_pages=total_urls,
-                        processed_pages=processed,
-                        successful_count=len(successful_results)
-                    )
+                urls_to_crawl = failed_urls
+                if urls_to_crawl and attempt < retry_count - 1:
+                    wait_time = 2 ** attempt
+                    logger.info(f"Retrying {len(urls_to_crawl)} failed URLs in {wait_time} seconds...")
+                    await asyncio.sleep(wait_time)
+
             if cancelled:
                 break
 

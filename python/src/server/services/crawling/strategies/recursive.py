@@ -224,76 +224,79 @@ class RecursiveCrawlStrategy:
                     processed_pages=total_processed,
                 )
 
-                # Use arun_many for native parallel crawling with streaming
-                logger.info(f"Starting parallel crawl of {len(batch_urls)} URLs with arun_many")
-                batch_results = await self.crawler.arun_many(
-                    urls=transformed_batch_urls, config=run_config, dispatcher=dispatcher
-                )
+                # Crawl this batch with retry logic
+                retry_count = int(settings.get("CRAWL_RETRY_COUNT", "3"))
+                urls_to_crawl_in_batch = transformed_batch_urls
+                for attempt in range(retry_count):
+                    if not urls_to_crawl_in_batch:
+                        break
 
-                # Handle streaming results from arun_many
-                i = 0
-                async for result in batch_results:
-                    # Check for cancellation during streaming results
-                    if cancellation_check:
-                        try:
-                            cancellation_check()
-                        except asyncio.CancelledError:
-                            cancelled = True
+                    logger.info(f"Starting parallel crawl of {len(urls_to_crawl_in_batch)} URLs (attempt {attempt + 1}/{retry_count})")
+                    batch_results = await self.crawler.arun_many(
+                        urls=urls_to_crawl_in_batch, config=run_config, dispatcher=dispatcher
+                    )
+
+                    failed_urls = []
+                    i = 0
+                    async for result in batch_results:
+                        if cancellation_check:
+                            try:
+                                cancellation_check()
+                            except asyncio.CancelledError:
+                                cancelled = True
+                                break
+                            except Exception:
+                                logger.exception("Unexpected error from cancellation_check()")
+                                raise
+
+                        original_url = url_mapping.get(result.url, result.url)
+                        norm_url = normalize_url(original_url)
+
+                        if attempt == 0:
+                            visited.add(norm_url)
+                            total_processed += 1
+
+                        if result.success and result.markdown:
+                            results_all.append({
+                                "url": original_url,
+                                "markdown": result.markdown,
+                                "html": result.html,
+                            })
+                            depth_successful += 1
+                            links = getattr(result, "links", {}) or {}
+                            for link in links.get("internal", []):
+                                next_url = normalize_url(link["href"])
+                                is_binary = self.url_handler.is_binary_file(next_url)
+                                if next_url not in visited and not is_binary:
+                                    if next_url not in next_level_urls:
+                                        next_level_urls.add(next_url)
+                                        total_discovered += 1
+                                elif is_binary:
+                                    logger.debug(f"Skipping binary file: {next_url}")
+                        else:
+                            logger.warning(f"Failed to crawl {original_url} on attempt {attempt + 1}: {getattr(result, 'error_message', 'Unknown error')}")
+                            failed_urls.append(result.url)
+
+                        current_idx = batch_idx + i + 1
+                        if current_idx % 5 == 0 or current_idx == len(urls_to_crawl):
+                            current_progress = int((total_processed / max(total_discovered, 1)) * 100)
                             await report_progress(
-                                min(int((total_processed / max(total_discovered, 1)) * 100), 99),
-                                "Crawl cancelled during batch processing",
-                                status="cancelled",
+                                current_progress,
+                                f"Depth {depth + 1}: processed {total_processed}/{total_discovered} URLs ({depth_successful} successful)",
                                 total_pages=total_discovered,
                                 processed_pages=total_processed,
                             )
-                            break
-                        except Exception:
-                            logger.exception("Unexpected error from cancellation_check()")
-                            raise
+                        i += 1
 
-                    # Map back to original URL using the mapping dict
-                    original_url = url_mapping.get(result.url, result.url)
+                    if cancelled:
+                        break
 
-                    norm_url = normalize_url(original_url)
-                    visited.add(norm_url)
-                    total_processed += 1
+                    urls_to_crawl_in_batch = failed_urls
+                    if urls_to_crawl_in_batch and attempt < retry_count - 1:
+                        wait_time = 2 ** attempt
+                        logger.info(f"Retrying {len(urls_to_crawl_in_batch)} failed URLs in {wait_time} seconds...")
+                        await asyncio.sleep(wait_time)
 
-                    if result.success and result.markdown:
-                        results_all.append({
-                            "url": original_url,
-                            "markdown": result.markdown,
-                            "html": result.html,  # Always use raw HTML for code extraction
-                        })
-                        depth_successful += 1
-
-                        # Find internal links for next depth
-                        links = getattr(result, "links", {}) or {}
-                        for link in links.get("internal", []):
-                            next_url = normalize_url(link["href"])
-                            # Skip binary files and already visited URLs
-                            is_binary = self.url_handler.is_binary_file(next_url)
-                            if next_url not in visited and not is_binary:
-                                if next_url not in next_level_urls:
-                                    next_level_urls.add(next_url)
-                                    total_discovered += 1  # Increment when we discover a new URL
-                            elif is_binary:
-                                logger.debug(f"Skipping binary file from crawl queue: {next_url}")
-                    else:
-                        logger.warning(
-                            f"Failed to crawl {original_url}: {getattr(result, 'error_message', 'Unknown error')}"
-                        )
-
-                    # Report progress every few URLs
-                    current_idx = batch_idx + i + 1
-                    if current_idx % 5 == 0 or current_idx == len(urls_to_crawl):
-                        current_progress = int((total_processed / max(total_discovered, 1)) * 100)
-                        await report_progress(
-                            current_progress,
-                            f"Depth {depth + 1}: processed {total_processed}/{total_discovered} URLs ({depth_successful} successful)",
-                            total_pages=total_discovered,
-                            processed_pages=total_processed,
-                        )
-                    i += 1
                 if cancelled:
                     break
 

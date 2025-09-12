@@ -443,6 +443,13 @@ When connected to Client/Cursor/Windsurf:
 - TanStack Query for all data fetching - NO PROP DRILLING
 - Vertical slice architecture in `/features` - features own their sub-features
 
+## Crawling Performance and Reliability
+
+You can configure the crawler's performance and reliability through the following settings in `Settings -> RAG Strategy`:
+
+-   **`CRAWL_PAGE_TIMEOUT`**: The maximum time in milliseconds to wait for a page to load before timing out. Default is `30000` (30 seconds).
+-   **`CRAWL_RETRY_COUNT`**: The number of times to retry a failed URL during a crawl. This is useful for handling transient network issues and timeouts. Default is `3`.
+
 ## Embedding Dimension Configuration
 
 When changing the embedding provider (e.g., from OpenAI to Google), you may need to update the database schema to match the new provider's embedding dimension. For example, OpenAI's `text-embedding-3-small` uses 1536 dimensions, while Google's `text-embedding-004` uses 768 dimensions.

@@ -137,14 +137,7 @@ class SinglePageCrawlStrategy:
                 logger.info(f"Crawling {url} (attempt {attempt + 1}/{retry_count})")
                 logger.info(f"Using wait_until: {crawl_config.wait_until}, page_timeout: {crawl_config.page_timeout}")
 
-                try:
-                    result = await self.crawler.arun(url=url, config=crawl_config)
-                except Exception as e:
-                    last_error = f"Crawler exception for {url}: {str(e)}"
-                    logger.error(last_error)
-                    if attempt < retry_count - 1:
-                        await asyncio.sleep(2 ** attempt)
-                    continue
+                result = await self.crawler.arun(url=url, config=crawl_config)
 
                 if not result.success:
                     last_error = f"Failed to crawl {url}: {result.error_message}"
@@ -189,13 +182,14 @@ class SinglePageCrawlStrategy:
                     "content_length": len(result.markdown)
                 }
 
-            except TimeoutError:
-                last_error = f"Timeout crawling {url}"
-                logger.warning(f"Crawl attempt {attempt + 1} timed out")
-            except Exception as e:
-                last_error = f"Error crawling page: {str(e)}"
-                logger.error(f"Error on attempt {attempt + 1} crawling {url}: {e}")
-                logger.error(traceback.format_exc())
+            except (TimeoutError, RuntimeError) as e:
+                if "Timeout" in str(e):
+                    last_error = f"Timeout crawling {url}"
+                    logger.warning(f"Crawl attempt {attempt + 1} timed out")
+                else:
+                    last_error = f"Error crawling page: {str(e)}"
+                    logger.error(f"Error on attempt {attempt + 1} crawling {url}: {e}")
+                    logger.error(traceback.format_exc())
 
             # Exponential backoff before retry
             if attempt < retry_count - 1:

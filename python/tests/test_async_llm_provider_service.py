@@ -93,7 +93,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.return_value = openai_provider_config
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             with patch(
                 "src.server.services.llm_provider_service.openai.AsyncOpenAI"
@@ -116,7 +116,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.return_value = ollama_provider_config
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             with patch(
                 "src.server.services.llm_provider_service.openai.AsyncOpenAI"
@@ -138,7 +138,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.return_value = google_provider_config
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             with patch(
                 "src.server.services.llm_provider_service.openai.AsyncOpenAI"
@@ -161,7 +161,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service._get_provider_base_url.return_value = None
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             with patch(
                 "src.server.services.llm_provider_service.openai.AsyncOpenAI"
@@ -189,7 +189,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.return_value = embedding_config
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             with patch(
                 "src.server.services.llm_provider_service.openai.AsyncOpenAI"
@@ -217,7 +217,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.return_value = config_without_key
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             with pytest.raises(ValueError, match="OpenAI API key not found"):
                 async with get_llm_client():
@@ -236,7 +236,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.return_value = config_without_key
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             with pytest.raises(ValueError, match="Google API key not found"):
                 async with get_llm_client():
@@ -255,7 +255,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.return_value = unsupported_config
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             with pytest.raises(ValueError, match="Unsupported LLM provider: unsupported"):
                 async with get_llm_client():
@@ -269,7 +269,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service._get_provider_base_url.return_value = None
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             with pytest.raises(ValueError, match="Unsupported LLM provider: custom-unsupported"):
                 async with get_llm_client(provider="custom-unsupported"):
@@ -283,7 +283,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.return_value = openai_provider_config
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             model = await get_embedding_model()
             assert model == "text-embedding-3-small"
@@ -298,7 +298,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.return_value = ollama_provider_config
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             model = await get_embedding_model()
             assert model == "nomic-embed-text"
@@ -311,7 +311,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.return_value = google_provider_config
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             model = await get_embedding_model()
             assert model == "text-embedding-004"
@@ -323,7 +323,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_credentials_by_category.return_value = rag_settings
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             model = await get_embedding_model(provider="custom-provider")
             assert model == "custom-embedding-model"
@@ -345,7 +345,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.return_value = config_with_custom
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             model = await get_embedding_model()
             assert model == "text-embedding-custom-large"
@@ -356,7 +356,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.side_effect = Exception("Database error")
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             model = await get_embedding_model()
             # Should fallback to OpenAI default
@@ -383,7 +383,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.return_value = openai_provider_config
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             with patch(
                 "src.server.services.llm_provider_service.openai.AsyncOpenAI"
@@ -421,7 +421,7 @@ class TestAsyncLLMProviderService:
         mock_credential_service.get_active_provider.return_value = openai_provider_config
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             with patch(
                 "src.server.services.llm_provider_service.openai.AsyncOpenAI"
@@ -451,7 +451,7 @@ class TestAsyncLLMProviderService:
         ]
 
         with patch(
-            "src.server.services.llm_provider_service.credential_service", mock_credential_service
+            "src.server.services.credential_service.credential_service", mock_credential_service
         ):
             with patch(
                 "src.server.services.llm_provider_service.openai.AsyncOpenAI"

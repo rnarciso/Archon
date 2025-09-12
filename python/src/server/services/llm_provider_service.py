@@ -12,7 +12,6 @@ from typing import Any
 import openai
 
 from ..config.logfire_config import get_logger
-from .credential_service import credential_service
 
 logger = get_logger(__name__)
 
@@ -53,6 +52,7 @@ async def get_llm_client(provider: str | None = None, use_embedding_provider: bo
     Yields:
         openai.AsyncOpenAI: An OpenAI-compatible client configured for the selected provider
     """
+    from .credential_service import credential_service
     client = None
 
     try:
@@ -143,6 +143,7 @@ async def get_embedding_model(provider: str | None = None) -> str:
     Returns:
         str: The embedding model to use
     """
+    from .credential_service import credential_service
     try:
         # Get provider configuration
         if provider:

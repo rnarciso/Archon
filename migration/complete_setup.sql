@@ -137,7 +137,8 @@ INSERT INTO archon_settings (key, value, is_encrypted, category, description) VA
 ('CRAWL_MAX_CONCURRENT', '10', false, 'rag_strategy', 'Maximum concurrent browser sessions for crawling (1-20)'),
 ('CRAWL_WAIT_STRATEGY', 'domcontentloaded', false, 'rag_strategy', 'When to consider page loaded: domcontentloaded, networkidle, or load'),
 ('CRAWL_PAGE_TIMEOUT', '30000', false, 'rag_strategy', 'Maximum time to wait for page load in milliseconds'),
-('CRAWL_DELAY_BEFORE_HTML', '0.5', false, 'rag_strategy', 'Time to wait for JavaScript rendering in seconds (0.1-5.0)')
+('CRAWL_DELAY_BEFORE_HTML', '0.5', false, 'rag_strategy', 'Time to wait for JavaScript rendering in seconds (0.1-5.0)'),
+('CRAWL_RETRY_COUNT', '3', false, 'rag_strategy', 'Number of times to retry a failed URL during crawl (0-5)')
 ON CONFLICT (key) DO NOTHING;
 
 -- Document Storage Performance Settings (from add_performance_settings.sql and optimize_batch_sizes.sql)
