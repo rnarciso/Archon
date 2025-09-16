@@ -3,6 +3,18 @@ import { fireEvent, render, screen } from "../../../testing/test-utils";
 import type { Project } from "../../types";
 import { ProjectCard } from "../ProjectCard";
 
+// Mock lucide-react icons
+vi.mock("lucide-react", () => ({
+  Activity: vi.fn(() => null),
+  CheckCircle2: vi.fn(() => null),
+  ListTodo: vi.fn(() => null),
+  Archive: vi.fn(() => null),
+  ArchiveRestore: vi.fn(() => null),
+  Clipboard: vi.fn(() => null),
+  Pin: vi.fn(() => null),
+  Trash2: vi.fn(() => null),
+}));
+
 describe("ProjectCard", () => {
   const mockProject: Project = {
     id: "project-1",
@@ -11,6 +23,7 @@ describe("ProjectCard", () => {
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
     pinned: false,
+    archived: false,
     features: [],
     docs: [],
   };
@@ -26,6 +39,8 @@ describe("ProjectCard", () => {
     onSelect: vi.fn(),
     onPin: vi.fn(),
     onDelete: vi.fn(),
+    onArchive: vi.fn(),
+    onUnarchive: vi.fn(),
   };
 
   beforeEach(() => {

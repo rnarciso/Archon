@@ -11,9 +11,11 @@ import { ProjectList } from "../components/ProjectList";
 import { DocsTab } from "../documents/DocsTab";
 import {
   projectKeys,
+  useArchiveProject,
   useDeleteProject,
   useProjects,
   useTaskCounts,
+  useUnarchiveProject,
   useUpdateProject,
 } from "../hooks/useProjectQueries";
 import { TasksTab } from "../tasks/TasksTab";
@@ -49,6 +51,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
   // State management
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [activeTab, setActiveTab] = useState("tasks");
+  const [activeProjectTab, setActiveProjectTab] = useState("active");
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<{
@@ -63,15 +66,25 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
   // Mutations
   const updateProjectMutation = useUpdateProject();
   const deleteProjectMutation = useDeleteProject();
+  const archiveProjectMutation = useArchiveProject();
+  const unarchiveProjectMutation = useUnarchiveProject();
 
-  // Sort projects - pinned first, then alphabetically
-  const sortedProjects = useMemo(() => {
-    return [...(projects as Project[])].sort((a, b) => {
+  // Filter and sort projects - pinned first, then alphabetically
+  const activeProjects = useMemo(() => {
+    return [...(projects as Project[])].filter(p => !p.archived).sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
       return a.title.localeCompare(b.title);
     });
   }, [projects]);
+
+  const archivedProjects = useMemo(() => {
+    return [...(projects as Project[])].filter(p => p.archived).sort((a, b) => {
+      return a.title.localeCompare(b.title);
+    });
+  }, [projects]);
+
+  const currentProjects = activeProjectTab === "active" ? activeProjects : archivedProjects;
 
   // Handle project selection
   const handleProjectSelect = useCallback(
@@ -80,6 +93,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
 
       setSelectedProject(project);
       setActiveTab("tasks");
+      setActiveProjectTab(project.archived ? "archived" : "active");
       navigate(`/projects/${project.id}`, { replace: true });
     },
     [selectedProject?.id, navigate],
@@ -87,24 +101,27 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
 
   // Auto-select project based on URL or default to leftmost
   useEffect(() => {
-    if (!sortedProjects.length) return;
+    if (!currentProjects.length) return;
 
     // If there's a projectId in the URL, select that project
     if (projectId) {
-      const project = sortedProjects.find((p) => p.id === projectId);
+      const project = projects.find((p) => p.id === projectId);
       if (project) {
         setSelectedProject(project);
+        setActiveProjectTab(project.archived ? "archived" : "active");
         return;
       }
     }
 
     // Otherwise, select the first (leftmost) project
-    if (!selectedProject || !sortedProjects.find((p) => p.id === selectedProject.id)) {
-      const defaultProject = sortedProjects[0];
-      setSelectedProject(defaultProject);
-      navigate(`/projects/${defaultProject.id}`, { replace: true });
+    if (!selectedProject || !currentProjects.find((p) => p.id === selectedProject.id)) {
+      const defaultProject = currentProjects[0];
+      if (defaultProject) {
+        setSelectedProject(defaultProject);
+        navigate(`/projects/${defaultProject.id}`, { replace: true });
+      }
     }
-  }, [sortedProjects, projectId, selectedProject, navigate]);
+  }, [currentProjects, projectId, selectedProject, navigate, projects]);
 
   // Refetch task counts when projects change
   useEffect(() => {
@@ -123,6 +140,18 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
       projectId,
       updates: { pinned: !project.pinned },
     });
+  };
+
+  // Handle archive project
+  const handleArchiveProject = (e: React.MouseEvent, projectId: string) => {
+    e.stopPropagation();
+    archiveProjectMutation.mutate(projectId);
+  };
+
+  // Handle unarchive project
+  const handleUnarchiveProject = (e: React.MouseEvent, projectId: string) => {
+    e.stopPropagation();
+    unarchiveProjectMutation.mutate(projectId);
   };
 
   // Handle delete project
@@ -147,6 +176,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
           if (remainingProjects.length > 0) {
             const nextProject = remainingProjects[0];
             setSelectedProject(nextProject);
+            setActiveProjectTab(nextProject.archived ? "archived" : "active");
             navigate(`/projects/${nextProject.id}`, { replace: true });
           } else {
             setSelectedProject(null);
@@ -175,8 +205,20 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
     >
       <ProjectHeader onNewProject={() => setIsNewProjectModalOpen(true)} />
 
+      {/* Project Tabs */}
+      <Tabs value={activeProjectTab} onValueChange={setActiveProjectTab} className="w-full mb-6">
+        <TabsList>
+          <TabsTrigger value="active" className="py-3 font-mono transition-all duration-300" color="blue">
+            Active Projects ({activeProjects.length})
+          </TabsTrigger>
+          <TabsTrigger value="archived" className="py-3 font-mono transition-all duration-300" color="blue">
+            Archived Projects ({archivedProjects.length})
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <ProjectList
-        projects={sortedProjects}
+        projects={currentProjects}
         selectedProject={selectedProject}
         taskCounts={taskCounts}
         isLoading={isLoadingProjects}
@@ -184,7 +226,10 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
         onProjectSelect={handleProjectSelect}
         onPinProject={handlePinProject}
         onDeleteProject={handleDeleteProject}
+        onArchiveProject={handleArchiveProject}
+        onUnarchiveProject={handleUnarchiveProject}
         onRetry={() => queryClient.invalidateQueries({ queryKey: projectKeys.lists() })}
+        showArchived={activeProjectTab === "archived"}
       />
 
       {/* Project Details Section */}

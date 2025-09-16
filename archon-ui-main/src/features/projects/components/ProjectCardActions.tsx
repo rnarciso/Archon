@@ -1,4 +1,4 @@
-import { Clipboard, Pin, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Clipboard, Pin, Trash2 } from "lucide-react";
 import type React from "react";
 import { useToast } from "../../ui/hooks/useToast";
 import { cn, glassmorphism } from "../../ui/primitives/styles";
@@ -8,18 +8,28 @@ interface ProjectCardActionsProps {
   projectId: string;
   projectTitle: string;
   isPinned: boolean;
+  isArchived: boolean;
   onPin: (e: React.MouseEvent) => void;
   onDelete: (e: React.MouseEvent) => void;
+  onArchive: (e: React.MouseEvent) => void;
+  onUnarchive: (e: React.MouseEvent) => void;
   isDeleting?: boolean;
+  isArchiving?: boolean;
+  isUnarchiving?: boolean;
 }
 
 export const ProjectCardActions: React.FC<ProjectCardActionsProps> = ({
   projectId,
   projectTitle,
   isPinned,
+  isArchived,
   onPin,
   onDelete,
+  onArchive,
+  onUnarchive,
   isDeleting = false,
+  isArchiving = false,
+  isUnarchiving = false,
 }) => {
   const { showToast } = useToast();
 
@@ -47,6 +57,37 @@ export const ProjectCardActions: React.FC<ProjectCardActionsProps> = ({
   };
   return (
     <div className="flex items-center gap-1.5">
+      {/* Archive/Unarchive Button */}
+      <SimpleTooltip content={isArchived ? "Unarchive project" : "Archive project"}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isArchived) {
+              if (!isUnarchiving) onUnarchive(e);
+            } else {
+              if (!isArchiving) onArchive(e);
+            }
+          }}
+          disabled={isArchiving || isUnarchiving}
+          className={cn(
+            "w-5 h-5 rounded-full flex items-center justify-center",
+            "transition-all duration-300",
+            isArchived
+              ? "bg-blue-100/80 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-500/30 hover:shadow-[0_0_10px_rgba(59,130,246,0.3)]"
+              : "bg-gray-100/80 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-500/30 hover:shadow-[0_0_10px_rgba(107,114,128,0.3)]",
+            (isArchiving || isUnarchiving) && "opacity-50 cursor-not-allowed",
+          )}
+          aria-label={isArchived ? "Unarchive project" : "Archive project"}
+        >
+          {isArchived ? (
+            <ArchiveRestore className={cn("w-3 h-3", isUnarchiving && "animate-pulse")} />
+          ) : (
+            <Archive className={cn("w-3 h-3", isArchiving && "animate-pulse")} />
+          )}
+        </button>
+      </SimpleTooltip>
+
       {/* Delete Button */}
       <SimpleTooltip content={isDeleting ? "Deleting..." : "Delete project"}>
         <button

@@ -17,6 +17,8 @@ interface ProjectCardProps {
   onSelect: (project: Project) => void;
   onPin: (e: React.MouseEvent, projectId: string) => void;
   onDelete: (e: React.MouseEvent, projectId: string, title: string) => void;
+  onArchive: (e: React.MouseEvent, projectId: string) => void;
+  onUnarchive: (e: React.MouseEvent, projectId: string) => void;
 }
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({
@@ -26,6 +28,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   onSelect,
   onPin,
   onDelete,
+  onArchive,
+  onUnarchive,
 }) => {
   return (
     <motion.li
@@ -258,8 +262,11 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           projectId={project.id}
           projectTitle={project.title}
           isPinned={project.pinned}
+          isArchived={project.archived}
           onPin={(e) => onPin(e, project.id)}
           onDelete={(e) => onDelete(e, project.id, project.title)}
+          onArchive={(e) => onArchive(e, project.id)}
+          onUnarchive={(e) => onUnarchive(e, project.id)}
         />
       </div>
     </motion.li>

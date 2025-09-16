@@ -78,6 +78,7 @@ export function useCreateProject() {
         data: undefined,
         docs: [],
         pinned: false,
+        archived: false,
       };
 
       // Optimistically add the new project
@@ -175,6 +176,92 @@ export function useUpdateProject() {
           : `Removed "${data.title}" from default selection`;
         showToast(message, "info");
       }
+    },
+  });
+}
+
+// Archive project mutation with optimistic updates
+export function useArchiveProject() {
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+
+  return useMutation({
+    mutationFn: (projectId: string) => projectService.updateProject(projectId, { archived: true }),
+    onMutate: async (projectId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: projectKeys.lists() });
+
+      // Snapshot the previous value
+      const previousProjects = queryClient.getQueryData<Project[]>(projectKeys.lists());
+
+      // Optimistically update the project
+      queryClient.setQueryData(projectKeys.lists(), (old: Project[] | undefined) => {
+        if (!old) return old;
+        return old.map((project) =>
+          project.id === projectId ? { ...project, archived: true } : project
+        );
+      });
+
+      return { previousProjects };
+    },
+    onError: (error, projectId, context) => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Failed to archive project:", error, { projectId });
+
+      // Rollback on error
+      if (context?.previousProjects) {
+        queryClient.setQueryData(projectKeys.lists(), context.previousProjects);
+      }
+
+      showToast(`Failed to archive project: ${errorMessage}`, "error");
+    },
+    onSuccess: (data) => {
+      // Invalidate and refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+      showToast(`Project "${data.title}" archived successfully`, "success");
+    },
+  });
+}
+
+// Unarchive project mutation with optimistic updates
+export function useUnarchiveProject() {
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+
+  return useMutation({
+    mutationFn: (projectId: string) => projectService.updateProject(projectId, { archived: false }),
+    onMutate: async (projectId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: projectKeys.lists() });
+
+      // Snapshot the previous value
+      const previousProjects = queryClient.getQueryData<Project[]>(projectKeys.lists());
+
+      // Optimistically update the project
+      queryClient.setQueryData(projectKeys.lists(), (old: Project[] | undefined) => {
+        if (!old) return old;
+        return old.map((project) =>
+          project.id === projectId ? { ...project, archived: false } : project
+        );
+      });
+
+      return { previousProjects };
+    },
+    onError: (error, projectId, context) => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Failed to unarchive project:", error, { projectId });
+
+      // Rollback on error
+      if (context?.previousProjects) {
+        queryClient.setQueryData(projectKeys.lists(), context.previousProjects);
+      }
+
+      showToast(`Failed to unarchive project: ${errorMessage}`, "error");
+    },
+    onSuccess: (data) => {
+      // Invalidate and refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+      showToast(`Project "${data.title}" unarchived successfully`, "success");
     },
   });
 }
