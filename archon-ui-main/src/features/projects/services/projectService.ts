@@ -31,6 +31,7 @@ export const projectService = {
           ...project,
           // Ensure pinned is properly handled as boolean
           pinned: project.pinned === true,
+          archived: project.archived === true,
           progress: project.progress || 0,
           updated: project.updated || formatRelativeTime(project.updated_at),
         };
@@ -139,6 +140,7 @@ export const projectService = {
       const processedProject = {
         ...project,
         pinned: project.pinned === true,
+        archived: project.archived === true,
         progress: project.progress || 0,
         updated: formatRelativeTime(project.updated_at),
       };
