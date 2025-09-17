@@ -42,6 +42,7 @@ class ProjectService:
                 "docs": [],  # Will add PRD document after creation
                 "features": [],
                 "data": [],
+                "archived": False,  # Default to not archived
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat(),
             }
@@ -338,6 +339,7 @@ class ProjectService:
                 "technical_sources",
                 "business_sources",
                 "pinned",
+                "archived",
             ]
 
             for field in allowed_fields:
