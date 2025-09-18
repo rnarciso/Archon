@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStaggeredEntrance } from "../../../hooks/useStaggeredEntrance";
 import { DeleteConfirmModal } from "../../ui/components/DeleteConfirmModal";
@@ -63,6 +63,10 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
   const [archivingProjectId, setArchivingProjectId] = useState<string | null>(null);
   const [unarchivingProjectId, setUnarchivingProjectId] = useState<string | null>(null);
 
+  // Navigation state tracking to prevent infinite loops
+  const lastNavigationRef = useRef<string | null>(null);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // React Query hooks
   const { data: projects = [], isLoading: isLoadingProjects, error: projectsError } = useProjects();
   const { data: taskCounts = {}, refetch: refetchTaskCounts } = useTaskCounts();
@@ -112,17 +116,42 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
 
       setSelectedProject(project);
       setActiveTab("tasks");
-      navigate(`/projects/${project.id}`, { replace: true });
+
+      // Only navigate if the URL doesn't already match the selected project
+      if (projectId !== project.id) {
+        const targetUrl = `/projects/${project.id}`;
+
+        // Prevent rapid successive navigation calls
+        if (lastNavigationRef.current !== targetUrl) {
+          lastNavigationRef.current = targetUrl;
+          navigate(targetUrl, { replace: true });
+
+          // Clear any existing timeout
+          if (navigationTimeoutRef.current) {
+            clearTimeout(navigationTimeoutRef.current);
+          }
+
+          // Reset navigation tracking after a delay
+          navigationTimeoutRef.current = setTimeout(() => {
+            lastNavigationRef.current = null;
+          }, 1000);
+        }
+      }
     },
-    [selectedProject?.id, navigate],
+    [selectedProject?.id, navigate, projectId],
   );
 
   // Auto-select project based on URL or default to first active project
   useEffect(() => {
+    // Prevent infinite navigation loops
+    if (selectedProject && selectedProject.id === projectId) {
+      return;
+    }
+
     // If there's a projectId in the URL, select that project
     if (projectId) {
       const project = projects.find((p) => p.id === projectId);
-      if (project) {
+      if (project && project.id !== selectedProject?.id) {
         setSelectedProject(project);
         return;
       }
@@ -132,14 +161,47 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
     if (!selectedProject || !projects.find((p) => p.id === selectedProject.id)) {
       // Always prefer active projects over archived ones
       const defaultProject = activeProjects.length > 0 ? activeProjects[0] : null;
-      if (defaultProject) {
-        setSelectedProject(defaultProject);
-        navigate(`/projects/${defaultProject.id}`, { replace: true });
-      } else if (archivedProjects.length > 0) {
-        // Only select archived project if there are no active projects
-        setSelectedProject(archivedProjects[0]);
-        navigate(`/projects/${archivedProjects[0].id}`, { replace: true });
-      } else {
+      if (defaultProject && defaultProject.id !== projectId) {
+        const targetUrl = `/projects/${defaultProject.id}`;
+
+        // Prevent rapid successive navigation calls
+        if (lastNavigationRef.current !== targetUrl) {
+          lastNavigationRef.current = targetUrl;
+          setSelectedProject(defaultProject);
+          navigate(targetUrl, { replace: true });
+
+          // Clear any existing timeout
+          if (navigationTimeoutRef.current) {
+            clearTimeout(navigationTimeoutRef.current);
+          }
+
+          // Reset navigation tracking after a delay
+          navigationTimeoutRef.current = setTimeout(() => {
+            lastNavigationRef.current = null;
+          }, 1000);
+        }
+      } else if (archivedProjects.length > 0 && !projectId) {
+        // Only select archived project if there are no active projects and no URL project
+        const archivedProject = archivedProjects[0];
+        const targetUrl = `/projects/${archivedProject.id}`;
+
+        if (lastNavigationRef.current !== targetUrl) {
+          lastNavigationRef.current = targetUrl;
+          setSelectedProject(archivedProject);
+          navigate(targetUrl, { replace: true });
+
+          // Clear any existing timeout
+          if (navigationTimeoutRef.current) {
+            clearTimeout(navigationTimeoutRef.current);
+          }
+
+          // Reset navigation tracking after a delay
+          navigationTimeoutRef.current = setTimeout(() => {
+            lastNavigationRef.current = null;
+          }, 1000);
+        }
+      } else if (!selectedProject && projectId) {
+        // If URL has a project but it doesn't exist, clear the URL
         setSelectedProject(null);
         navigate("/projects", { replace: true });
       }
@@ -152,6 +214,15 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
       refetchTaskCounts();
     }
   }, [projects, refetchTaskCounts]);
+
+  // Cleanup navigation timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Handle pin toggle
   const handlePinProject = async (e: React.MouseEvent, projectId: string) => {
