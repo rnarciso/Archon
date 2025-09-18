@@ -81,7 +81,6 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
     const validationResult = validateProjectArray(projects);
     if (!validationResult.success) {
       console.error("Project validation error:", validationResult.error);
-      console.error("Projects data:", projects);
       return [];
     }
     // Cast to Project type since we've validated the structure
