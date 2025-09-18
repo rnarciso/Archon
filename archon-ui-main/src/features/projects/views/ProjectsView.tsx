@@ -58,6 +58,11 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
     title: string;
   } | null>(null);
 
+  // Loading states for operations
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
+  const [archivingProjectId, setArchivingProjectId] = useState<string | null>(null);
+  const [unarchivingProjectId, setUnarchivingProjectId] = useState<string | null>(null);
+
   // React Query hooks
   const { data: projects = [], isLoading: isLoadingProjects, error: projectsError } = useProjects();
   const { data: taskCounts = {}, refetch: refetchTaskCounts } = useTaskCounts();
@@ -68,19 +73,36 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
   const archiveProjectMutation = useArchiveProject();
   const unarchiveProjectMutation = useUnarchiveProject();
 
+  // Loading state management
+  useEffect(() => {
+    setDeletingProjectId(deleteProjectMutation.isPending ? deleteProjectMutation.variables : null);
+  }, [deleteProjectMutation.isPending, deleteProjectMutation.variables]);
+
+  useEffect(() => {
+    setArchivingProjectId(archiveProjectMutation.isPending ? archiveProjectMutation.variables : null);
+  }, [archiveProjectMutation.isPending, archiveProjectMutation.variables]);
+
+  useEffect(() => {
+    setUnarchivingProjectId(unarchiveProjectMutation.isPending ? unarchiveProjectMutation.variables : null);
+  }, [unarchiveProjectMutation.isPending, unarchiveProjectMutation.variables]);
+
   // Filter and sort projects - pinned first, then alphabetically
   const activeProjects = useMemo(() => {
-    return [...(projects as Project[])].filter(p => !p.archived).sort((a, b) => {
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
-      return a.title.localeCompare(b.title);
-    });
+    return [...(projects as Project[])]
+      .filter((p) => !p.archived)
+      .sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return a.title.localeCompare(b.title);
+      });
   }, [projects]);
 
   const archivedProjects = useMemo(() => {
-    return [...(projects as Project[])].filter(p => p.archived).sort((a, b) => {
-      return a.title.localeCompare(b.title);
-    });
+    return [...(projects as Project[])]
+      .filter((p) => p.archived)
+      .sort((a, b) => {
+        return a.title.localeCompare(b.title);
+      });
   }, [projects]);
 
   // Handle project selection
@@ -146,12 +168,20 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
   // Handle archive project
   const handleArchiveProject = (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
+    // Prevent archiving if already an operation in progress on this project
+    if (archivingProjectId || unarchivingProjectId || deletingProjectId) {
+      return;
+    }
     archiveProjectMutation.mutate(projectId);
   };
 
   // Handle unarchive project
   const handleUnarchiveProject = (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
+    // Prevent unarchiving if already an operation in progress on this project
+    if (archivingProjectId || unarchivingProjectId || deletingProjectId) {
+      return;
+    }
     unarchiveProjectMutation.mutate(projectId);
   };
 
@@ -163,11 +193,15 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
       setSelectedProject(nextActiveProject);
       navigate(`/projects/${nextActiveProject.id}`, { replace: true });
     }
-  }, [activeProjects, archivedProjects, selectedProject, navigate]);
+  }, [activeProjects, selectedProject, navigate]);
 
   // Handle delete project
   const handleDeleteProject = (e: React.MouseEvent, projectId: string, title: string) => {
     e.stopPropagation();
+    // Prevent deletion if already an operation in progress on this project
+    if (archivingProjectId || unarchivingProjectId || deletingProjectId) {
+      return;
+    }
     setProjectToDelete({ id: projectId, title });
     setShowDeleteConfirm(true);
   };
@@ -241,6 +275,9 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
           onUnarchiveProject={handleUnarchiveProject}
           onRetry={() => queryClient.invalidateQueries({ queryKey: projectKeys.lists() })}
           showArchived={false}
+          deletingProjectId={deletingProjectId}
+          archivingProjectId={archivingProjectId}
+          unarchivingProjectId={unarchivingProjectId}
         />
       </div>
 
@@ -264,6 +301,9 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
             onUnarchiveProject={handleUnarchiveProject}
             onRetry={() => queryClient.invalidateQueries({ queryKey: projectKeys.lists() })}
             showArchived={true}
+            deletingProjectId={deletingProjectId}
+            archivingProjectId={archivingProjectId}
+            unarchivingProjectId={unarchivingProjectId}
           />
         </div>
       )}

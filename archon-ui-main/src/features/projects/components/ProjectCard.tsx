@@ -19,6 +19,9 @@ interface ProjectCardProps {
   onDelete: (e: React.MouseEvent, projectId: string, title: string) => void;
   onArchive: (e: React.MouseEvent, projectId: string) => void;
   onUnarchive: (e: React.MouseEvent, projectId: string) => void;
+  isDeleting?: boolean;
+  isArchiving?: boolean;
+  isUnarchiving?: boolean;
 }
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({
@@ -30,6 +33,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   onDelete,
   onArchive,
   onUnarchive,
+  isDeleting = false,
+  isArchiving = false,
+  isUnarchiving = false,
 }) => {
   return (
     <motion.li
@@ -267,6 +273,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           onDelete={(e) => onDelete(e, project.id, project.title)}
           onArchive={(e) => onArchive(e, project.id)}
           onUnarchive={(e) => onUnarchive(e, project.id)}
+          isDeleting={isDeleting}
+          isArchiving={isArchiving}
+          isUnarchiving={isUnarchiving}
         />
       </div>
     </motion.li>

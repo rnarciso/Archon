@@ -18,6 +18,9 @@ interface ProjectListProps {
   onUnarchiveProject: (e: React.MouseEvent, projectId: string) => void;
   onRetry: () => void;
   showArchived?: boolean;
+  deletingProjectId?: string | null;
+  archivingProjectId?: string | null;
+  unarchivingProjectId?: string | null;
 }
 
 const itemVariants = {
@@ -42,15 +45,14 @@ export const ProjectList: React.FC<ProjectListProps> = ({
   onUnarchiveProject,
   onRetry,
   showArchived = false,
+  deletingProjectId = null,
+  archivingProjectId = null,
+  unarchivingProjectId = null,
 }) => {
-  // Filter and sort projects
-  const filteredProjects = React.useMemo(() => {
-    return projects.filter(project => showArchived ? project.archived : !project.archived);
-  }, [projects, showArchived]);
-
   // Sort projects - pinned first, then by creation date (newest first)
+  // Note: Projects are already filtered by ProjectsView, no need to filter again
   const sortedProjects = React.useMemo(() => {
-    return [...filteredProjects].sort((a, b) => {
+    return [...projects].sort((a, b) => {
       // Pinned projects always come first
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
@@ -62,7 +64,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
       const byDate = timeB - timeA; // Newer first
       return byDate !== 0 ? byDate : a.id.localeCompare(b.id); // Tie-break with ID for deterministic sort
     });
-  }, [filteredProjects]);
+  }, [projects]);
 
   if (isLoading) {
     return (
@@ -101,8 +103,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
             <p className="text-gray-600 dark:text-gray-400 mb-4">
               {showArchived
                 ? "No archived projects yet."
-                : "No projects yet. Create your first project to get started!"
-              }
+                : "No projects yet. Create your first project to get started!"}
             </p>
           </div>
         </div>
@@ -113,7 +114,10 @@ export const ProjectList: React.FC<ProjectListProps> = ({
   return (
     <motion.div initial="hidden" animate="visible" className="relative mb-10" variants={itemVariants}>
       <div className="overflow-x-auto overflow-y-visible pb-4 pt-2 pr-6 md:pr-8 scrollbar-thin">
-        <ul className="flex gap-4 min-w-max pl-6 md:pl-8" aria-label={showArchived ? "Archived Projects" : "Active Projects"}>
+        <ul
+          className="flex gap-4 min-w-max pl-6 md:pl-8"
+          aria-label={showArchived ? "Archived Projects" : "Active Projects"}
+        >
           {sortedProjects.map((project) => (
             <li key={project.id}>
               <ProjectCard
@@ -125,6 +129,9 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                 onDelete={onDeleteProject}
                 onArchive={onArchiveProject}
                 onUnarchive={onUnarchiveProject}
+                isDeleting={deletingProjectId === project.id}
+                isArchiving={archivingProjectId === project.id}
+                isUnarchiving={unarchivingProjectId === project.id}
               />
             </li>
           ))}

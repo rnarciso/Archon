@@ -197,9 +197,7 @@ export function useArchiveProject() {
       // Optimistically update the project
       queryClient.setQueryData(projectKeys.lists(), (old: Project[] | undefined) => {
         if (!old) return old;
-        return old.map((project) =>
-          project.id === projectId ? { ...project, archived: true } : project
-        );
+        return old.map((project) => (project.id === projectId ? { ...project, archived: true } : project));
       });
 
       return { previousProjects };
@@ -229,7 +227,14 @@ export function useUnarchiveProject() {
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: (projectId: string) => projectService.updateProject(projectId, { archived: false }),
+    mutationFn: async (projectId: string) => {
+      try {
+        return await projectService.updateProject(projectId, { archived: false });
+      } catch (error) {
+        console.error("Unarchive project API error:", error);
+        throw error;
+      }
+    },
     onMutate: async (projectId) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: projectKeys.lists() });
@@ -237,12 +242,16 @@ export function useUnarchiveProject() {
       // Snapshot the previous value
       const previousProjects = queryClient.getQueryData<Project[]>(projectKeys.lists());
 
+      // Check if project exists before optimistic update
+      const projectExists = previousProjects?.some((p) => p.id === projectId);
+      if (!projectExists) {
+        throw new Error(`Project with ID ${projectId} not found`);
+      }
+
       // Optimistically update the project
       queryClient.setQueryData(projectKeys.lists(), (old: Project[] | undefined) => {
         if (!old) return old;
-        return old.map((project) =>
-          project.id === projectId ? { ...project, archived: false } : project
-        );
+        return old.map((project) => (project.id === projectId ? { ...project, archived: false } : project));
       });
 
       return { previousProjects };
@@ -256,7 +265,17 @@ export function useUnarchiveProject() {
         queryClient.setQueryData(projectKeys.lists(), context.previousProjects);
       }
 
-      showToast(`Failed to unarchive project: ${errorMessage}`, "error");
+      // User-friendly error messages
+      let userMessage = errorMessage;
+      if (errorMessage.includes("not found")) {
+        userMessage = "Project not found. Please refresh the page and try again.";
+      } else if (errorMessage.includes("network")) {
+        userMessage = "Network error. Please check your connection and try again.";
+      } else if (errorMessage.includes("permission")) {
+        userMessage = "You don't have permission to unarchive this project.";
+      }
+
+      showToast(`Failed to unarchive project: ${userMessage}`, "error");
     },
     onSuccess: (data) => {
       // Invalidate and refetch to ensure consistency
