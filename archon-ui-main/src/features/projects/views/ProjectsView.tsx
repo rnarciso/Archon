@@ -95,7 +95,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
     [selectedProject?.id, navigate],
   );
 
-  // Auto-select project based on URL or default to leftmost active project
+  // Auto-select project based on URL or default to first active project
   useEffect(() => {
     // If there's a projectId in the URL, select that project
     if (projectId) {
@@ -106,13 +106,20 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
       }
     }
 
-    // Otherwise, select the first active project, or fall back to first archived if no active projects
+    // Only auto-select if no project is currently selected or if current selection doesn't exist
     if (!selectedProject || !projects.find((p) => p.id === selectedProject.id)) {
-      const defaultProject = activeProjects.length > 0 ? activeProjects[0] :
-                          archivedProjects.length > 0 ? archivedProjects[0] : null;
+      // Always prefer active projects over archived ones
+      const defaultProject = activeProjects.length > 0 ? activeProjects[0] : null;
       if (defaultProject) {
         setSelectedProject(defaultProject);
         navigate(`/projects/${defaultProject.id}`, { replace: true });
+      } else if (archivedProjects.length > 0) {
+        // Only select archived project if there are no active projects
+        setSelectedProject(archivedProjects[0]);
+        navigate(`/projects/${archivedProjects[0].id}`, { replace: true });
+      } else {
+        setSelectedProject(null);
+        navigate("/projects", { replace: true });
       }
     }
   }, [activeProjects, archivedProjects, projectId, selectedProject, navigate, projects]);
@@ -148,6 +155,16 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
     unarchiveProjectMutation.mutate(projectId);
   };
 
+  // Handle selection logic when projects are archived/unarchived
+  useEffect(() => {
+    if (selectedProject && selectedProject.archived && activeProjects.length > 0) {
+      // If selected project is archived but there are active projects, switch to an active one
+      const nextActiveProject = activeProjects[0];
+      setSelectedProject(nextActiveProject);
+      navigate(`/projects/${nextActiveProject.id}`, { replace: true });
+    }
+  }, [activeProjects, archivedProjects, selectedProject, navigate]);
+
   // Handle delete project
   const handleDeleteProject = (e: React.MouseEvent, projectId: string, title: string) => {
     e.stopPropagation();
@@ -166,9 +183,16 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
 
         // If we deleted the selected project, select another one
         if (selectedProject?.id === projectToDelete.id) {
-          const remainingProjects = (projects as Project[]).filter((p) => p.id !== projectToDelete.id);
-          if (remainingProjects.length > 0) {
-            const nextProject = remainingProjects[0];
+          const remainingActiveProjects = activeProjects.filter((p) => p.id !== projectToDelete.id);
+          const remainingArchivedProjects = archivedProjects.filter((p) => p.id !== projectToDelete.id);
+
+          // Priority: active projects first, then archived projects
+          if (remainingActiveProjects.length > 0) {
+            const nextProject = remainingActiveProjects[0];
+            setSelectedProject(nextProject);
+            navigate(`/projects/${nextProject.id}`, { replace: true });
+          } else if (remainingArchivedProjects.length > 0) {
+            const nextProject = remainingArchivedProjects[0];
             setSelectedProject(nextProject);
             navigate(`/projects/${nextProject.id}`, { replace: true });
           } else {

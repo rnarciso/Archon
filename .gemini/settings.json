@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "archon": {
+      "httpUrl": "http://docker.local:8051/mcp"
+    }
+  }
+}
