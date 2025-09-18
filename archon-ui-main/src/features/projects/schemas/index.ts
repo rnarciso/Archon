@@ -32,8 +32,8 @@ export const ProjectSchema = z.object({
   github_repo: z.string().url().optional().or(z.literal("")),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
-  technical_sources: z.array(z.unknown()).optional(), // Can be strings or full objects
-  business_sources: z.array(z.unknown()).optional(), // Can be strings or full objects
+  technical_sources: z.array(z.string()).optional(),
+  business_sources: z.array(z.string()).optional(),
 
   // Extended UI properties
   description: z.string().optional(),
