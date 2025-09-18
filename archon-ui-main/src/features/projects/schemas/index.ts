@@ -58,7 +58,16 @@ export function validateUpdateProject(data: unknown) {
   return UpdateProjectSchema.safeParse(data);
 }
 
+// Array validation for projects
+export const ProjectArraySchema = z.array(ProjectSchema);
+
 // Export type inference helpers
 export type CreateProjectInput = z.infer<typeof CreateProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof UpdateProjectSchema>;
 export type ProjectInput = z.infer<typeof ProjectSchema>;
+export type ProjectArrayInput = z.infer<typeof ProjectArraySchema>;
+
+// Validation helper functions
+export function validateProjectArray(data: unknown) {
+  return ProjectArraySchema.safeParse(data);
+}

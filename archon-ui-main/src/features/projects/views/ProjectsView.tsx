@@ -18,8 +18,13 @@ import {
   useUnarchiveProject,
   useUpdateProject,
 } from "../hooks/useProjectQueries";
+import { validateProjectArray } from "../schemas";
 import { TasksTab } from "../tasks/TasksTab";
 import type { Project } from "../types";
+
+// Constants for magic numbers
+const NAVIGATION_TIMEOUT = 1000; // 1 second cooldown for navigation calls
+const STAGGER_DELAY = 0.15; // Delay for staggered animations
 
 interface ProjectsViewProps {
   className?: string;
@@ -71,6 +76,17 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
   const { data: projects = [], isLoading: isLoadingProjects, error: projectsError } = useProjects();
   const { data: taskCounts = {}, refetch: refetchTaskCounts } = useTaskCounts();
 
+  // Validate projects data with runtime type checking
+  const validatedProjects = useMemo(() => {
+    const validationResult = validateProjectArray(projects);
+    if (!validationResult.success) {
+      console.error("Project validation error:", validationResult.error);
+      return [];
+    }
+    // Cast to Project type since we've validated the structure
+    return validationResult.data as Project[];
+  }, [projects]);
+
   // Mutations
   const updateProjectMutation = useUpdateProject();
   const deleteProjectMutation = useDeleteProject();
@@ -90,24 +106,34 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
     setUnarchivingProjectId(unarchiveProjectMutation.isPending ? unarchiveProjectMutation.variables : null);
   }, [unarchiveProjectMutation.isPending, unarchiveProjectMutation.variables]);
 
-  // Filter and sort projects - pinned first, then alphabetically
+  // Filter and sort projects - pinned first, then by creation date (newest first)
   const activeProjects = useMemo(() => {
-    return [...(projects as Project[])]
+    return [...validatedProjects]
       .filter((p) => !p.archived)
       .sort((a, b) => {
+        // Pinned projects always come first
         if (a.pinned && !b.pinned) return -1;
         if (!a.pinned && b.pinned) return 1;
-        return a.title.localeCompare(b.title);
+
+        // Then sort by creation date (newest first)
+        const timeA = Number.isFinite(Date.parse(a.created_at)) ? Date.parse(a.created_at) : 0;
+        const timeB = Number.isFinite(Date.parse(b.created_at)) ? Date.parse(b.created_at) : 0;
+        const byDate = timeB - timeA; // Newer first
+        return byDate !== 0 ? byDate : a.id.localeCompare(b.id); // Tie-break with ID for deterministic sort
       });
-  }, [projects]);
+  }, [validatedProjects]);
 
   const archivedProjects = useMemo(() => {
-    return [...(projects as Project[])]
+    return [...validatedProjects]
       .filter((p) => p.archived)
       .sort((a, b) => {
-        return a.title.localeCompare(b.title);
+        // Sort archived projects by creation date (newest first)
+        const timeA = Number.isFinite(Date.parse(a.created_at)) ? Date.parse(a.created_at) : 0;
+        const timeB = Number.isFinite(Date.parse(b.created_at)) ? Date.parse(b.created_at) : 0;
+        const byDate = timeB - timeA; // Newer first
+        return byDate !== 0 ? byDate : a.id.localeCompare(b.id); // Tie-break with ID for deterministic sort
       });
-  }, [projects]);
+  }, [validatedProjects]);
 
   // Handle project selection
   const handleProjectSelect = useCallback(
@@ -134,7 +160,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
           // Reset navigation tracking after a delay
           navigationTimeoutRef.current = setTimeout(() => {
             lastNavigationRef.current = null;
-          }, 1000);
+          }, NAVIGATION_TIMEOUT);
         }
       }
     },
@@ -150,7 +176,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
 
     // If there's a projectId in the URL, select that project
     if (projectId) {
-      const project = projects.find((p) => p.id === projectId);
+      const project = validatedProjects.find((p) => p.id === projectId);
       if (project && project.id !== selectedProject?.id) {
         setSelectedProject(project);
         return;
@@ -158,7 +184,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
     }
 
     // Only auto-select if no project is currently selected or if current selection doesn't exist
-    if (!selectedProject || !projects.find((p) => p.id === selectedProject.id)) {
+    if (!selectedProject || !validatedProjects.find((p) => p.id === selectedProject.id)) {
       // Always prefer active projects over archived ones
       const defaultProject = activeProjects.length > 0 ? activeProjects[0] : null;
       if (defaultProject && defaultProject.id !== projectId) {
@@ -178,7 +204,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
           // Reset navigation tracking after a delay
           navigationTimeoutRef.current = setTimeout(() => {
             lastNavigationRef.current = null;
-          }, 1000);
+          }, NAVIGATION_TIMEOUT);
         }
       } else if (archivedProjects.length > 0 && !projectId) {
         // Only select archived project if there are no active projects and no URL project
@@ -198,7 +224,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
           // Reset navigation tracking after a delay
           navigationTimeoutRef.current = setTimeout(() => {
             lastNavigationRef.current = null;
-          }, 1000);
+          }, NAVIGATION_TIMEOUT);
         }
       } else if (!selectedProject && projectId) {
         // If URL has a project but it doesn't exist, clear the URL
@@ -206,14 +232,14 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
         navigate("/projects", { replace: true });
       }
     }
-  }, [activeProjects, archivedProjects, projectId, selectedProject, navigate, projects]);
+  }, [activeProjects, archivedProjects, projectId, selectedProject, navigate, validatedProjects]);
 
   // Refetch task counts when projects change
   useEffect(() => {
-    if ((projects as Project[]).length > 0) {
+    if (validatedProjects.length > 0) {
       refetchTaskCounts();
     }
-  }, [projects, refetchTaskCounts]);
+  }, [validatedProjects, refetchTaskCounts]);
 
   // Cleanup navigation timeout on unmount
   useEffect(() => {
@@ -315,7 +341,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
   };
 
   // Staggered entrance animation
-  const isVisible = useStaggeredEntrance([1, 2, 3], 0.15);
+  const isVisible = useStaggeredEntrance([1, 2, 3], STAGGER_DELAY);
 
   return (
     <motion.div

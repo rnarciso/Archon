@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { AlertCircle, Loader2 } from "lucide-react";
-import React from "react";
+import type React from "react";
 import { Button } from "../../ui/primitives";
 import type { Project } from "../types";
 import { ProjectCard } from "./ProjectCard";
@@ -49,22 +49,9 @@ export const ProjectList: React.FC<ProjectListProps> = ({
   archivingProjectId = null,
   unarchivingProjectId = null,
 }) => {
-  // Sort projects - pinned first, then by creation date (newest first)
-  // Note: Projects are already filtered by ProjectsView, no need to filter again
-  const sortedProjects = React.useMemo(() => {
-    return [...projects].sort((a, b) => {
-      // Pinned projects always come first
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
-
-      // Then sort by creation date (newest first)
-      // This ensures new projects appear on the left after pinned ones
-      const timeA = Number.isFinite(Date.parse(a.created_at)) ? Date.parse(a.created_at) : 0;
-      const timeB = Number.isFinite(Date.parse(b.created_at)) ? Date.parse(b.created_at) : 0;
-      const byDate = timeB - timeA; // Newer first
-      return byDate !== 0 ? byDate : a.id.localeCompare(b.id); // Tie-break with ID for deterministic sort
-    });
-  }, [projects]);
+  // Note: Projects are already filtered and sorted by ProjectsView
+  // No need to sort again - use the array as-is
+  const sortedProjects = projects;
 
   if (isLoading) {
     return (
