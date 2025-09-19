@@ -83,8 +83,8 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
       console.error("Project validation error:", validationResult.error);
       return [];
     }
-    // Cast to Project type since we've validated the structure
-    return validationResult.data as Project[];
+    // Data is validated, safe to return as Project[]
+    return validationResult.data;
   }, [projects]);
 
   // Mutations
@@ -93,18 +93,23 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
   const archiveProjectMutation = useArchiveProject();
   const unarchiveProjectMutation = useUnarchiveProject();
 
-  // Loading state management
+  // Loading state management - combined to prevent race conditions
   useEffect(() => {
-    setDeletingProjectId(deleteProjectMutation.isPending ? deleteProjectMutation.variables : null);
-  }, [deleteProjectMutation.isPending, deleteProjectMutation.variables]);
+    const deletingId = deleteProjectMutation.isPending ? deleteProjectMutation.variables : null;
+    const archivingId = archiveProjectMutation.isPending ? archiveProjectMutation.variables : null;
+    const unarchivingId = unarchiveProjectMutation.isPending ? unarchiveProjectMutation.variables : null;
 
-  useEffect(() => {
-    setArchivingProjectId(archiveProjectMutation.isPending ? archiveProjectMutation.variables : null);
-  }, [archiveProjectMutation.isPending, archiveProjectMutation.variables]);
-
-  useEffect(() => {
-    setUnarchivingProjectId(unarchiveProjectMutation.isPending ? unarchiveProjectMutation.variables : null);
-  }, [unarchiveProjectMutation.isPending, unarchiveProjectMutation.variables]);
+    setDeletingProjectId(deletingId);
+    setArchivingProjectId(archivingId);
+    setUnarchivingProjectId(unarchivingId);
+  }, [
+    deleteProjectMutation.isPending,
+    deleteProjectMutation.variables,
+    archiveProjectMutation.isPending,
+    archiveProjectMutation.variables,
+    unarchiveProjectMutation.isPending,
+    unarchiveProjectMutation.variables,
+  ]);
 
   // Filter and sort projects - pinned first, then by creation date (newest first)
   const activeProjects = useMemo(() => {
@@ -164,7 +169,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
         }
       }
     },
-    [selectedProject?.id, navigate, projectId],
+    [selectedProject?.id, navigate, projectId, activeProjects, archivedProjects],
   );
 
   // Auto-select project based on URL or default to first active project
@@ -241,12 +246,14 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
     }
   }, [validatedProjects, refetchTaskCounts]);
 
-  // Cleanup navigation timeout on unmount
+  // Cleanup navigation timeout on unmount and prevent memory leaks
   useEffect(() => {
     return () => {
       if (navigationTimeoutRef.current) {
         clearTimeout(navigationTimeoutRef.current);
+        navigationTimeoutRef.current = null;
       }
+      lastNavigationRef.current = null;
     };
   }, []);
 

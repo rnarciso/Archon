@@ -29,7 +29,7 @@ export const ProjectSchema = z.object({
   docs: z.array(z.unknown()).optional(),
   features: z.array(z.unknown()).optional(),
   data: z.array(z.unknown()).optional(),
-  github_repo: z.string().url().optional().or(z.literal("")),
+  github_repo: z.string().url().optional().or(z.literal("")).nullable(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
   technical_sources: z.array(z.string()).optional(),
