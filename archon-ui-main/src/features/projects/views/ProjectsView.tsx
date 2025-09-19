@@ -111,6 +111,14 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
     unarchiveProjectMutation.variables,
   ]);
 
+  // Memoize project timestamps to avoid expensive Date.parse() calls
+  const projectTimestamps = useMemo(() => {
+    return new Map(validatedProjects.map(p => [
+      p.id,
+      Number.isFinite(Date.parse(p.created_at)) ? Date.parse(p.created_at) : 0
+    ]));
+  }, [validatedProjects]);
+
   // Filter and sort projects - pinned first, then by creation date (newest first)
   const activeProjects = useMemo(() => {
     return [...validatedProjects]
@@ -120,25 +128,25 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
         if (a.pinned && !b.pinned) return -1;
         if (!a.pinned && b.pinned) return 1;
 
-        // Then sort by creation date (newest first)
-        const timeA = Number.isFinite(Date.parse(a.created_at)) ? Date.parse(a.created_at) : 0;
-        const timeB = Number.isFinite(Date.parse(b.created_at)) ? Date.parse(b.created_at) : 0;
+        // Then sort by creation date (newest first) - using memoized timestamps
+        const timeA = projectTimestamps.get(a.id) || 0;
+        const timeB = projectTimestamps.get(b.id) || 0;
         const byDate = timeB - timeA; // Newer first
         return byDate !== 0 ? byDate : a.id.localeCompare(b.id); // Tie-break with ID for deterministic sort
       });
-  }, [validatedProjects]);
+  }, [validatedProjects, projectTimestamps]);
 
   const archivedProjects = useMemo(() => {
     return [...validatedProjects]
       .filter((p) => p.archived)
       .sort((a, b) => {
-        // Sort archived projects by creation date (newest first)
-        const timeA = Number.isFinite(Date.parse(a.created_at)) ? Date.parse(a.created_at) : 0;
-        const timeB = Number.isFinite(Date.parse(b.created_at)) ? Date.parse(b.created_at) : 0;
+        // Sort archived projects by creation date (newest first) - using memoized timestamps
+        const timeA = projectTimestamps.get(a.id) || 0;
+        const timeB = projectTimestamps.get(b.id) || 0;
         const byDate = timeB - timeA; // Newer first
         return byDate !== 0 ? byDate : a.id.localeCompare(b.id); // Tie-break with ID for deterministic sort
       });
-  }, [validatedProjects]);
+  }, [validatedProjects, projectTimestamps]);
 
   // Handle project selection
   const handleProjectSelect = useCallback(
@@ -169,21 +177,35 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
         }
       }
     },
-    [selectedProject?.id, navigate, projectId, activeProjects, archivedProjects],
+    [selectedProject?.id, navigate, projectId],
   );
 
   // Auto-select project based on URL or default to first active project
   useEffect(() => {
-    // Prevent infinite navigation loops
+    // Guard against empty projects
+    if (validatedProjects.length === 0) {
+      if (projectId) {
+        // Clear URL if no projects exist
+        navigate("/projects", { replace: true });
+      }
+      setSelectedProject(null);
+      return;
+    }
+
+    // Prevent infinite navigation loops and state conflicts
     if (selectedProject && selectedProject.id === projectId) {
       return;
     }
 
-    // If there's a projectId in the URL, select that project
+    // If there's a projectId in the URL, try to select that project
     if (projectId) {
       const project = validatedProjects.find((p) => p.id === projectId);
       if (project && project.id !== selectedProject?.id) {
         setSelectedProject(project);
+        return;
+      } else if (!project) {
+        // Project doesn't exist, clear the URL
+        navigate("/projects", { replace: true });
         return;
       }
     }
@@ -191,12 +213,14 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
     // Only auto-select if no project is currently selected or if current selection doesn't exist
     if (!selectedProject || !validatedProjects.find((p) => p.id === selectedProject.id)) {
       // Always prefer active projects over archived ones
-      const defaultProject = activeProjects.length > 0 ? activeProjects[0] : null;
+      const defaultProject = activeProjects.length > 0 ? activeProjects[0] :
+                           archivedProjects.length > 0 ? archivedProjects[0] : null;
+
       if (defaultProject && defaultProject.id !== projectId) {
         const targetUrl = `/projects/${defaultProject.id}`;
 
-        // Prevent rapid successive navigation calls
-        if (lastNavigationRef.current !== targetUrl) {
+        // Prevent rapid successive navigation calls and circular navigation
+        if (lastNavigationRef.current !== targetUrl && selectedProject?.id !== defaultProject.id) {
           lastNavigationRef.current = targetUrl;
           setSelectedProject(defaultProject);
           navigate(targetUrl, { replace: true });
@@ -211,28 +235,8 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
             lastNavigationRef.current = null;
           }, NAVIGATION_TIMEOUT);
         }
-      } else if (archivedProjects.length > 0 && !projectId) {
-        // Only select archived project if there are no active projects and no URL project
-        const archivedProject = archivedProjects[0];
-        const targetUrl = `/projects/${archivedProject.id}`;
-
-        if (lastNavigationRef.current !== targetUrl) {
-          lastNavigationRef.current = targetUrl;
-          setSelectedProject(archivedProject);
-          navigate(targetUrl, { replace: true });
-
-          // Clear any existing timeout
-          if (navigationTimeoutRef.current) {
-            clearTimeout(navigationTimeoutRef.current);
-          }
-
-          // Reset navigation tracking after a delay
-          navigationTimeoutRef.current = setTimeout(() => {
-            lastNavigationRef.current = null;
-          }, NAVIGATION_TIMEOUT);
-        }
-      } else if (!selectedProject && projectId) {
-        // If URL has a project but it doesn't exist, clear the URL
+      } else if (!defaultProject) {
+        // No projects available at all
         setSelectedProject(null);
         navigate("/projects", { replace: true });
       }
@@ -260,7 +264,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
   // Handle pin toggle
   const handlePinProject = async (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
-    const project = (projects as Project[]).find((p) => p.id === projectId);
+    const project = validatedProjects.find((p) => p.id === projectId);
     if (!project) return;
 
     updateProjectMutation.mutate({
@@ -293,9 +297,12 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
   useEffect(() => {
     if (selectedProject && selectedProject.archived && activeProjects.length > 0) {
       // If selected project is archived but there are active projects, switch to an active one
+      // Guard against navigation loops
       const nextActiveProject = activeProjects[0];
-      setSelectedProject(nextActiveProject);
-      navigate(`/projects/${nextActiveProject.id}`, { replace: true });
+      if (nextActiveProject.id !== selectedProject.id) {
+        setSelectedProject(nextActiveProject);
+        navigate(`/projects/${nextActiveProject.id}`, { replace: true });
+      }
     }
   }, [activeProjects, selectedProject, navigate]);
 
@@ -371,7 +378,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
           selectedProject={selectedProject}
           taskCounts={taskCounts}
           isLoading={isLoadingProjects}
-          error={projectsError as Error | null}
+          error={projectsError}
           onProjectSelect={handleProjectSelect}
           onPinProject={handlePinProject}
           onDeleteProject={handleDeleteProject}
@@ -397,7 +404,7 @@ export function ProjectsView({ className = "", "data-id": dataId }: ProjectsView
             selectedProject={selectedProject}
             taskCounts={taskCounts}
             isLoading={isLoadingProjects}
-            error={projectsError as Error | null}
+            error={projectsError}
             onProjectSelect={handleProjectSelect}
             onPinProject={handlePinProject}
             onDeleteProject={handleDeleteProject}
